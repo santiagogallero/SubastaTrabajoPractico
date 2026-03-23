@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useSSL=true&requireSSL=true&serverTimezone=UTC
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  mail:
+    provider: ${APP_MAIL_PROVIDER:mailersend}
+    from: ${APP_MAIL_FROM}
+    from-name: ${APP_MAIL_FROM_NAME:Auction System}
+    mailersend:
+      token: ${MAILERSEND_API_TOKEN:}
+  verification:
+    provider: ${PERSON_VERIFICATION_PROVIDER:renaper}

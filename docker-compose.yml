@@ -1,0 +1,62 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auction-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-auctiondb}
+      DB_USER: ${DB_USER:-auction_user}
+      DB_PASSWORD: ${DB_PASSWORD:-auction_pass}
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-no-reply@auction.local}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-WmY0bSt3N3N4QTR3dTlTRnk4Tm1jWmJRNlV4U3M5VTJ2RFBrYmVFM3V4VT0=}
+      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-7200}
+      PERSON_VERIFICATION_PROVIDER: ${PERSON_VERIFICATION_PROVIDER:-mock}
+      AUCTION_DEFAULT_DURATION_MINUTES: ${AUCTION_DEFAULT_DURATION_MINUTES:-120}
+      AUCTION_COMMISSION_BUYER_PERCENT: ${AUCTION_COMMISSION_BUYER_PERCENT:-10}
+      AUCTION_COMMISSION_SELLER_PERCENT: ${AUCTION_COMMISSION_SELLER_PERCENT:-8}
+      AUCTION_PENALTY_PERCENT: ${AUCTION_PENALTY_PERCENT:-10}
+      AUCTION_PENALTY_GRACE_HOURS: ${AUCTION_PENALTY_GRACE_HOURS:-72}
+      AUCTION_PENALTY_REMINDER_HOURS: ${AUCTION_PENALTY_REMINDER_HOURS:-24}
+    ports:
+      - "8080:8080"
+
+  mysql:
+    image: mysql:8.0
+    container_name: auction-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-auctiondb}
+      MYSQL_USER: ${DB_USER:-auction_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-auction_pass}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_pass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: auction-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAIL_PORT:-1025}:1025"
+      - "${MAIL_UI_PORT:-8025}:8025"
+
+volumes:
+  mysql_data:

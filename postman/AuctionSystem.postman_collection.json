@@ -1,0 +1,671 @@
+{
+  "info": {
+    "name": "Auction System Backend",
+    "_postman_id": "1d3e96f4-5f53-4f6f-9a56-7e50bb2f8f63",
+    "description": "Coleccion para probar endpoints principales del backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "subastaId",
+      "value": "1"
+    },
+    {
+      "key": "itemId",
+      "value": "1"
+    },
+    {
+      "key": "registroSubastaId",
+      "value": "1"
+    },
+    {
+      "key": "conversacionId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Public",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Auth - Register Stage1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postor1@example.com\",\n  \"password\": \"Password123!\",\n  \"documento\": \"12345678\",\n  \"numeroTramite\": \"1000000001\",\n  \"nombre\": \"Postor Uno\",\n  \"domicilioLegal\": \"Av Siempre Viva 123\",\n  \"paisOrigen\": \"AR\",\n  \"docFrenteUrl\": \"https://example.com/doc-frente.jpg\",\n  \"docDorsoUrl\": \"https://example.com/doc-dorso.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register/stage1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register", "stage1"]
+            }
+          }
+        },
+        {
+          "name": "Auth - Register Stage2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postor1@example.com\",\n  \"request\": {\n    \"categoria\": \"POSTOR\",\n    \"mediosPago\": [\n      {\n        \"tipo\": \"TRANSFERENCIA\",\n        \"aliasDescripcion\": \"postor.uno.cbu\",\n        \"moneda\": \"ARS\",\n        \"montoGarantia\": 10000,\n        \"verificado\": false\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register/stage2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register", "stage2"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Login",
+      "item": [
+        {
+          "name": "Auth - Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const raw = pm.response.text();",
+                  "let json = null;",
+                  "if (raw && raw.trim().length > 0) {",
+                  "  try {",
+                  "    json = JSON.parse(raw);",
+                  "  } catch (e) {",
+                  "    console.log('Respuesta no JSON:', raw);",
+                  "  }",
+                  "}",
+                  "if (json && json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "} else {",
+                  "  pm.collectionVariables.unset('token');",
+                  "  if (json && json.message) {",
+                  "    console.log('Login error:', json.message);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@auction.com\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Auth Admin",
+      "item": [
+        {
+          "name": "Auth - Admin Aprobar",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"postor1@example.com\",\n  \"categoria\": \"POSTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/aprobar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "aprobar"]
+            }
+          }
+        },
+        {
+          "name": "Auth - Verificar Medio Pago",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medioPagoId\": 1,\n  \"verificado\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/verificar-medio-pago",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "verificar-medio-pago"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Auction Runtime",
+      "item": [
+        {
+          "name": "Configurar Moneda Subasta",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subastaId\": {{subastaId}},\n  \"moneda\": \"ARS\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/subasta/configurar-moneda",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "subasta", "configurar-moneda"]
+            }
+          }
+        },
+        {
+          "name": "Configurar Duracion Subasta",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subastaId\": {{subastaId}},\n  \"duracionMinutos\": 120\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/subasta/configurar-duracion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "subasta", "configurar-duracion"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Timing Subasta",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/subasta/{{subastaId}}/timing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "subasta", "{{subastaId}}", "timing"]
+            }
+          }
+        },
+        {
+          "name": "Conectar Subasta",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subastaId\": {{subastaId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/subasta/conectar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "subasta", "conectar"]
+            }
+          }
+        },
+        {
+          "name": "Pujar",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subastaId\": {{subastaId}},\n  \"itemId\": {{itemId}},\n  \"importe\": 15000.00,\n  \"moneda\": \"ARS\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/pujas",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "pujas"]
+            }
+          }
+        },
+        {
+          "name": "Historial Pujas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/pujas/historial/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "pujas", "historial", "{{itemId}}"]
+            }
+          }
+        },
+        {
+          "name": "Calcular Comision",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"importeFinal\": 100000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auction-runtime/comisiones/calcular",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auction-runtime", "comisiones", "calcular"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Compliance",
+      "item": [
+        {
+          "name": "Inicializar Pago",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registroSubastaId\": {{registroSubastaId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/compliance/pagos/inicializar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compliance", "pagos", "inicializar"]
+            }
+          }
+        },
+        {
+          "name": "Registrar Pago",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registroSubastaId\": {{registroSubastaId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/compliance/pagos/registrar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compliance", "pagos", "registrar"]
+            }
+          }
+        },
+        {
+          "name": "Procesar Multas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compliance/multas/procesar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compliance", "multas", "procesar"]
+            }
+          }
+        },
+        {
+          "name": "Mis Pagos",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/compliance/mis-pagos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compliance", "mis-pagos"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Chat Verificacion",
+      "item": [
+        {
+          "name": "Crear Conversacion",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/verificacion-chat/conversaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verificacion-chat", "conversaciones"]
+            }
+          }
+        },
+        {
+          "name": "Tomar Conversacion",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/verificacion-chat/conversaciones/{{conversacionId}}/tomar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verificacion-chat", "conversaciones", "{{conversacionId}}", "tomar"]
+            }
+          }
+        },
+        {
+          "name": "Listar Conversaciones",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/verificacion-chat/conversaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verificacion-chat", "conversaciones"]
+            }
+          }
+        },
+        {
+          "name": "Enviar Mensaje",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"texto\": \"Hola, necesito verificar un pago\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/verificacion-chat/conversaciones/{{conversacionId}}/mensajes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verificacion-chat", "conversaciones", "{{conversacionId}}", "mensajes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Notifications",
+      "item": [
+        {
+          "name": "Test Email",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"test@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/test-email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "test-email"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

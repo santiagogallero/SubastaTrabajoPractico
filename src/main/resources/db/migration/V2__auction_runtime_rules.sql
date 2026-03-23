@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS subasta_config_ext (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    subasta_id INT NOT NULL UNIQUE,
+    moneda VARCHAR(3) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS conexion_subasta_activa (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    cliente_id INT NOT NULL UNIQUE,
+    subasta_id INT NOT NULL,
+    conectado_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

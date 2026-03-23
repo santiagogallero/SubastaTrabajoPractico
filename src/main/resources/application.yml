@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: auction-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  mail:
+    provider: ${APP_MAIL_PROVIDER:smtp}
+    from-name: ${APP_MAIL_FROM_NAME:Auction System}
+    mailersend:
+      token: ${MAILERSEND_API_TOKEN:}
+  security:
+    jwt-secret: ${JWT_SECRET_BASE64:WmY0bSt3N3N4QTR3dTlTRnk4Tm1jWmJRNlV4U3M5VTJ2RFBrYmVFM3V4VT0=}
+    jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:7200}
+  verification:
+    provider: ${PERSON_VERIFICATION_PROVIDER:mock}
+    strict-name-match: ${PERSON_VERIFICATION_STRICT_NAME_MATCH:true}
+    renaper:
+      base-url: ${RENAPER_BASE_URL:}
+      token: ${RENAPER_TOKEN:}
+  auction:
+    default-duration-minutes: ${AUCTION_DEFAULT_DURATION_MINUTES:120}
+    commission:
+      buyer-percent: ${AUCTION_COMMISSION_BUYER_PERCENT:10}
+      seller-percent: ${AUCTION_COMMISSION_SELLER_PERCENT:8}
+    penalty:
+      percent: ${AUCTION_PENALTY_PERCENT:10}
+      grace-hours: ${AUCTION_PENALTY_GRACE_HOURS:72}
+      reminder-hours: ${AUCTION_PENALTY_REMINDER_HOURS:24}

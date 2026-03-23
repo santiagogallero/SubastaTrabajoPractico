@@ -1,0 +1,14 @@
+# Build output
+/target/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+/.idea/
+*.iml
+
+# OS
+.DS_Store

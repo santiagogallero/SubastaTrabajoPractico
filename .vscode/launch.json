@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-AuctionSystemApplication<backend>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.auctionsystem.AuctionSystemApplication",
+            "projectName": "backend",
+            "args": "",
+            "env": {
+                "JAVA_HOME": "/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home"
+            },
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
