@@ -4,12 +4,16 @@ import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
 import com.auctionsystem.auth.dto.AdminApprovalRequest;
 import com.auctionsystem.auth.dto.PaymentVerificationRequest;
+import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
+import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
 import com.auctionsystem.auth.dto.Stage2RegistrationRequest;
+import com.auctionsystem.auth.dto.VerifyEmailCodeRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,6 +41,28 @@ public class AuthController {
     public ResponseEntity<String> registerStage2(@Valid @RequestBody Stage2Payload payload) {
         authService.completeStage2(payload.email(), payload.request());
         return ResponseEntity.ok("Registro etapa 2 completado");
+    }
+
+    @PostMapping("/email/send-code")
+    public ResponseEntity<String> sendEmailCode(@Valid @RequestBody SendEmailVerificationCodeRequest request) {
+        authService.sendEmailVerificationCode(request);
+        return ResponseEntity.ok("Codigo enviado");
+    }
+
+    @PostMapping("/email/verify-code")
+    public ResponseEntity<String> verifyEmailCode(@Valid @RequestBody VerifyEmailCodeRequest request) {
+        authService.verifyEmailCode(request);
+        return ResponseEntity.ok("Correo verificado. Tu cuenta queda en revision.");
+    }
+
+    @PostMapping("/payment-methods")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> registerPaymentMethods(
+            @Valid @RequestBody RegisterPaymentMethodsRequest request,
+            Principal principal
+    ) {
+        authService.registerPaymentMethods(principal.getName(), request);
+        return ResponseEntity.ok("Medios de pago registrados");
     }
 
     @PostMapping("/login")
