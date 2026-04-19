@@ -150,11 +150,16 @@ Responses:
 ### GET /api/health
 Healthcheck de backend.
 
+Response body (200):
+{
+  "status": "UP"
+}
+
 Responses:
-- 200: {"status":"UP"}
+- 200: backend activo
 
 ### POST /api/notifications/test-email
-Envia un correo de prueba (ADMIN/EMPLEADO).
+Envia un correo de prueba.
 
 Request body:
 {
@@ -164,95 +169,382 @@ Request body:
 Responses:
 - 200: "Email sent"
 - 400: email invalido
-- 401/403: sin autenticacion o permisos
 
 ## 4) CRUD base (personas, productos, subastas)
 
 ### Personas
-- GET /api/personas
-- GET /api/personas/{id}
-- POST /api/personas
-- PUT /api/personas/{id}
-- DELETE /api/personas/{id}
 
-Codigos esperados:
-- 200: lecturas/actualizaciones exitosas
-- 204: borrado exitoso
-- 404: id inexistente (get by id, update, delete)
+### GET /api/personas
+Lista todas las personas.
+
+Responses:
+- 200: lista de personas
+
+### GET /api/personas/{id}
+Obtiene una persona por id.
+
+Responses:
+- 200: persona encontrada
+- 404: persona no encontrada
+
+### POST /api/personas
+Crea una persona.
+
+Request body:
+{
+  "...": "campos de Persona"
+}
+
+Responses:
+- 200: persona creada
+
+### PUT /api/personas/{id}
+Actualiza una persona existente.
+
+Request body:
+{
+  "...": "campos de Persona"
+}
+
+Responses:
+- 200: persona actualizada
+- 404: persona no encontrada
+
+### DELETE /api/personas/{id}
+Elimina una persona.
+
+Responses:
+- 204: persona eliminada
+- 404: persona no encontrada
 
 ### Productos
-- GET /api/productos
-- GET /api/productos/{id}
-- POST /api/productos
-- PUT /api/productos/{id}
-- DELETE /api/productos/{id}
 
-Codigos esperados:
-- 200: lecturas/actualizaciones exitosas
-- 204: borrado exitoso
-- 404: id inexistente (get by id, update, delete)
+### GET /api/productos
+Lista todos los productos.
+
+Responses:
+- 200: lista de productos
+
+### GET /api/productos/{id}
+Obtiene un producto por id.
+
+Responses:
+- 200: producto encontrado
+- 404: producto no encontrado
+
+### POST /api/productos
+Crea un producto.
+
+Request body:
+{
+  "...": "campos de Producto"
+}
+
+Responses:
+- 200: producto creado
+
+### PUT /api/productos/{id}
+Actualiza un producto existente.
+
+Request body:
+{
+  "...": "campos de Producto"
+}
+
+Responses:
+- 200: producto actualizado
+- 404: producto no encontrado
+
+### DELETE /api/productos/{id}
+Elimina un producto.
+
+Responses:
+- 204: producto eliminado
+- 404: producto no encontrado
 
 ### Subastas
-- GET /api/subastas
-- GET /api/subastas/{id}
-- POST /api/subastas
-- PUT /api/subastas/{id}
-- DELETE /api/subastas/{id}
 
-Codigos esperados:
-- 200: lecturas/actualizaciones exitosas
-- 204: borrado exitoso
-- 404: id inexistente (get by id, update, delete)
+### GET /api/subastas
+Lista todas las subastas.
+
+Responses:
+- 200: lista de subastas
+
+### GET /api/subastas/{id}
+Obtiene una subasta por id.
+
+Responses:
+- 200: subasta encontrada
+- 404: subasta no encontrada
+
+### POST /api/subastas
+Crea una subasta.
+
+Request body:
+{
+  "...": "campos de Subasta"
+}
+
+Responses:
+- 200: subasta creada
+
+### PUT /api/subastas/{id}
+Actualiza una subasta existente.
+
+Request body:
+{
+  "...": "campos de Subasta"
+}
+
+Responses:
+- 200: subasta actualizada
+- 404: subasta no encontrada
+
+### DELETE /api/subastas/{id}
+Elimina una subasta.
+
+Responses:
+- 204: subasta eliminada
+- 404: subasta no encontrada
 
 ## 5) Motor de subasta y operaciones runtime
 
-Base path: /api/auction-runtime
+### POST /api/auction-runtime/subasta/configurar-moneda
+Configura moneda de subasta (ADMIN/EMPLEADO).
 
-- POST /subasta/configurar-moneda (ADMIN/EMPLEADO)
-- POST /subasta/configurar-duracion (ADMIN/EMPLEADO)
-- GET /subasta/{subastaId}/timing (autenticado)
-- POST /subasta/conectar (POSTOR)
-- DELETE /subasta/desconectar (POSTOR)
-- POST /pujas (POSTOR)
-- GET /pujas/historial/{itemId} (POSTOR/ADMIN/EMPLEADO/SUBASTADOR)
-- POST /comisiones/calcular (POSTOR/DUENIO/ADMIN/EMPLEADO/SUBASTADOR)
+Request body:
+{
+  "subastaId": 1,
+  "moneda": "ARS"
+}
 
-Codigos comunes:
-- 200: operacion exitosa
-- 400: regla de negocio invalida
+Responses:
+- 200: "Moneda de subasta configurada"
+- 400: subasta no encontrada o moneda invalida
+- 401/403: sin autenticacion o permisos
+
+### POST /api/auction-runtime/subasta/configurar-duracion
+Configura duracion de subasta (ADMIN/EMPLEADO).
+
+Request body:
+{
+  "subastaId": 1,
+  "duracionMinutos": 120
+}
+
+Responses:
+- 200: "Duracion de subasta configurada"
+- 400: subasta no encontrada o duracion invalida
+- 401/403: sin autenticacion o permisos
+
+### GET /api/auction-runtime/subasta/{subastaId}/timing
+Obtiene estado temporal de una subasta (autenticado).
+
+Response body (200):
+{
+  "subastaId": 1,
+  "duracionMinutos": 120,
+  "inicio": "2026-04-19T10:00:00",
+  "fin": "2026-04-19T12:00:00",
+  "estadoTemporal": "EN_CURSO",
+  "minutosRestantes": 35
+}
+
+Responses:
+- 200: timing obtenido
+- 400: subasta no encontrada
 - 401: no autenticado
-- 403: sin rol suficiente
+
+### POST /api/auction-runtime/subasta/conectar
+Conecta al usuario postor a una subasta.
+
+Request body:
+{
+  "subastaId": 1
+}
+
+Responses:
+- 200: "Conexion a subasta realizada"
+- 400: regla de negocio invalida (categoria, estado, ventana temporal, etc.)
+- 401/403: sin autenticacion o sin rol POSTOR
+
+### DELETE /api/auction-runtime/subasta/desconectar
+Desconecta al postor de su subasta activa.
+
+Responses:
+- 200: "Desconexion de subasta realizada"
+- 400: no estaba conectado
+- 401/403: sin autenticacion o sin rol POSTOR
+
+### POST /api/auction-runtime/pujas
+Registra una puja del postor.
+
+Request body:
+{
+  "subastaId": 1,
+  "itemId": 10,
+  "importe": 15000.00,
+  "moneda": "ARS"
+}
+
+Response body (200):
+{
+  "pujoId": 123,
+  "itemId": 10,
+  "ofertaAnterior": 12000.00,
+  "ofertaActual": 15000.00,
+  "minimoPermitido": 12100.00,
+  "maximoPermitido": 14400.00,
+  "mensaje": "Puja registrada correctamente"
+}
+
+Responses:
+- 200: puja registrada
+- 400: regla de negocio invalida (sin medio de pago verificado, categoria no habilitada, moneda, monto, etc.)
+- 401/403: sin autenticacion o sin rol POSTOR
+
+### GET /api/auction-runtime/pujas/historial/{itemId}
+Devuelve historial de pujas por item.
+
+Responses:
+- 200: lista de historial de pujas
+- 401/403: sin autenticacion o sin rol habilitado
+
+### POST /api/auction-runtime/comisiones/calcular
+Calcula comisiones de comprador, vendedor y casa de subasta.
+
+Request body:
+{
+  "importeFinal": 15000.00
+}
+
+Response body (200):
+{
+  "importeFinal": 15000.00,
+  "porcentajeComprador": 10.00,
+  "porcentajeVendedor": 8.00,
+  "comisionComprador": 1500.00,
+  "comisionVendedor": 1200.00,
+  "totalPagaComprador": 16500.00,
+  "netoRecibeVendedor": 13800.00,
+  "ingresoCasaSubasta": 2700.00
+}
+
+Responses:
+- 200: calculo exitoso
+- 400: importe invalido
+- 401/403: sin autenticacion o sin rol habilitado
+
+Reglas relevantes para participar:
+- Se puede ver la subasta sin restricciones.
+- Para conectarse a una subasta, el usuario debe estar admitido y habilitado por categoria.
+- Para pujar, ademas de estar conectado, debe tener al menos un medio de pago verificado y activo.
+- Si la categoria del cliente no habilita la subasta, la respuesta es 400 con mensaje "La categoria del cliente no habilita esta subasta".
 
 ## 6) Compliance y pagos
 
-Base path: /api/compliance
+### POST /api/compliance/pagos/inicializar
+Inicializa estado de pago de un registro de subasta (ADMIN/EMPLEADO).
 
-- POST /pagos/inicializar (ADMIN/EMPLEADO)
-- POST /pagos/registrar (ADMIN/EMPLEADO)
-- POST /multas/procesar (ADMIN/EMPLEADO)
-- GET /mis-pagos (autenticado)
+Request body:
+{
+  "registroSubastaId": 1
+}
 
-Codigos comunes:
-- 200: operacion exitosa
-- 400: validacion o datos invalidos
+Response body (200):
+{
+  "registroSubastaId": 1,
+  "estadoPago": "PENDIENTE",
+  "montoOfertado": 10000.00,
+  "montoMulta": 0.00,
+  "fechaVencimiento": "2026-04-20T10:00:00",
+  "fechaLimiteRegularizacion": "2026-04-23T10:00:00",
+  "bloqueado": false
+}
+
+Responses:
+- 200: inicializacion exitosa
+- 400: registro invalido o inexistente
+- 401/403: sin autenticacion o permisos
+
+### POST /api/compliance/pagos/registrar
+Marca pago como registrado (ADMIN/EMPLEADO).
+
+Request body:
+{
+  "registroSubastaId": 1
+}
+
+Responses:
+- 200: estado de pago actualizado
+- 400: registro invalido o inexistente
+- 401/403: sin autenticacion o permisos
+
+### POST /api/compliance/multas/procesar
+Procesa moras pendientes (ADMIN/EMPLEADO).
+
+Responses:
+- 200: "Moras procesadas: N"
+- 401/403: sin autenticacion o permisos
+
+### GET /api/compliance/mis-pagos
+Lista estados de pago del usuario autenticado.
+
+Responses:
+- 200: lista de PagoEstadoDto
 - 401: no autenticado
-- 403: sin rol suficiente
 
 ## 7) Chat de verificacion
 
-Base path: /api/verificacion-chat
+### POST /api/verificacion-chat/conversaciones
+Crea conversacion para DUENIO.
 
-- POST /conversaciones (DUENIO)
-- POST /conversaciones/{conversacionId}/tomar (ADMIN/EMPLEADO)
-- GET /conversaciones (DUENIO/ADMIN/EMPLEADO)
-- GET /conversaciones/{conversacionId}/mensajes (DUENIO/ADMIN/EMPLEADO)
-- POST /conversaciones/{conversacionId}/mensajes (DUENIO/ADMIN/EMPLEADO)
+Response body (200):
+{
+  "conversacionId": 1,
+  "estado": "ABIERTA"
+}
 
-Codigos comunes:
-- 200: operacion exitosa
-- 400: datos invalidos
+Responses:
+- 200: conversacion creada
+- 401/403: sin autenticacion o rol incorrecto
+
+### POST /api/verificacion-chat/conversaciones/{conversacionId}/tomar
+Asigna/toma una conversacion (ADMIN/EMPLEADO).
+
+Responses:
+- 200: conversacion actualizada
+- 400: conversacion inexistente o no disponible
+- 401/403: sin autenticacion o rol incorrecto
+
+### GET /api/verificacion-chat/conversaciones
+Lista conversaciones visibles para el usuario.
+
+Responses:
+- 200: lista de ConversacionDto
+- 400: rol no habilitado
 - 401: no autenticado
-- 403: sin rol suficiente
+
+### GET /api/verificacion-chat/conversaciones/{conversacionId}/mensajes
+Lista mensajes de una conversacion.
+
+Responses:
+- 200: lista de MensajeChatDto
+- 400: conversacion inexistente o sin permisos
+- 401: no autenticado
+
+### POST /api/verificacion-chat/conversaciones/{conversacionId}/mensajes
+Envia un mensaje en una conversacion.
+
+Request body:
+{
+  "texto": "Hola, necesito ayuda con mi verificacion"
+}
+
+Responses:
+- 200: mensaje enviado
+- 400: conversacion inexistente, texto invalido o sin permisos
+- 401: no autenticado
 
 ## 8) Swagger para evidencia de entrega
 
