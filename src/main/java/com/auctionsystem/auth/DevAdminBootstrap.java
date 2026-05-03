@@ -34,18 +34,18 @@ public class DevAdminBootstrap implements CommandLineRunner {
         }
 
         String normalizedEmail = bootstrapEmail.toLowerCase(Locale.ROOT);
-        if (usuarioAuthRepository.existsByEmail(normalizedEmail)) {
-            return;
-        }
-
         Rol adminRol = rolRepository.findByNombre("ADMIN")
                 .orElseThrow(() -> new IllegalStateException("Rol ADMIN no encontrado"));
 
-        UsuarioAuth admin = new UsuarioAuth();
-        admin.setEmail(normalizedEmail);
+        UsuarioAuth admin = usuarioAuthRepository.findByEmail(normalizedEmail).orElseGet(() -> {
+            UsuarioAuth newAdmin = new UsuarioAuth();
+            newAdmin.setEmail(normalizedEmail);
+            newAdmin.setCreatedAt(LocalDateTime.now());
+            return newAdmin;
+        });
+
         admin.setPasswordHash(passwordEncoder.encode(bootstrapPassword));
         admin.setEstado("ACTIVO");
-        admin.setCreatedAt(LocalDateTime.now());
         admin.setUpdatedAt(LocalDateTime.now());
         admin.getRoles().add(adminRol);
 

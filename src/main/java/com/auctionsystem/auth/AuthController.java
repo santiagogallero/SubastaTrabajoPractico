@@ -2,6 +2,7 @@ package com.auctionsystem.auth;
 
 import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
+import com.auctionsystem.auth.dto.CurrentUserResponse;
 import com.auctionsystem.auth.dto.AdminApprovalRequest;
 import com.auctionsystem.auth.dto.PaymentVerificationRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -68,6 +70,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<CurrentUserResponse> me(Principal principal) {
+        return ResponseEntity.ok(authService.currentUser(principal.getName()));
     }
 
     @PostMapping("/admin/aprobar")

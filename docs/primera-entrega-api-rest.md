@@ -95,6 +95,22 @@ Responses:
 - 401: credenciales invalidas
 - 403: usuario pendiente de aprobacion/habilitacion
 
+### GET /api/auth/me
+Devuelve datos del usuario autenticado (user auth).
+
+Response body (200):
+{
+  "id": 12,
+  "email": "user@mail.com",
+  "estado": "ACTIVO",
+  "personaId": 34,
+  "roles": ["POSTOR"]
+}
+
+Responses:
+- 200: usuario autenticado
+- 401: sin token o token invalido
+
 ### POST /api/auth/payment-methods
 Registra medios de pago luego de login (requiere token).
 

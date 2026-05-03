@@ -2,6 +2,7 @@ package com.auctionsystem.auth;
 
 import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
+import com.auctionsystem.auth.dto.CurrentUserResponse;
 import com.auctionsystem.auth.dto.PaymentMethodRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
@@ -293,4 +294,22 @@ public class AuthService {
 
         return new LoginResponse(token, "Bearer", jwtService.getExpirationSeconds(), roles);
     }
+
+        @Transactional(readOnly = true)
+        public CurrentUserResponse currentUser(String email) {
+                UsuarioAuth usuario = usuarioAuthRepository.findByEmail(email.toLowerCase(Locale.ROOT))
+                                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+                Set<String> roles = usuario.getRoles().stream()
+                                .map(Rol::getNombre)
+                                .collect(Collectors.toSet());
+
+                return new CurrentUserResponse(
+                                usuario.getId(),
+                                usuario.getEmail(),
+                                usuario.getEstado(),
+                                usuario.getPersonaId(),
+                                roles
+                );
+        }
 }
