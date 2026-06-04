@@ -47,15 +47,10 @@ VALUES
   (3, 2, 'CERTIFIED_CHECK', 'Cheque certificado Banco Nación', 'ARS', 500000.00, TRUE, TRUE);
 
 -- ---------------------------------------------------------------------------
--- 5. SUBASTAS
+-- NOTA: INSERT INTO subastas se omite aquí porque `subastas` es una tabla
+-- JPA-managed (Hibernate la crea después de Flyway). Ver seed_subastas.sql
+-- para el script manual a correr una vez que el backend está en pie.
 -- ---------------------------------------------------------------------------
-INSERT IGNORE INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidad_asistentes, tiene_deposito, seguridad_propia, categoria)
-VALUES
-  (1, '2026-06-15', '10:00:00', 'ACTIVA', NULL, 'Salón Principal - Buenos Aires', 150, 'SI', 'NO', 'Oro'),
-  (2, '2026-06-18', '14:30:00', 'PENDIENTE', NULL, 'Sede Córdoba - Centro de Convenciones', 80, 'SI', 'SI', 'Plata'),
-  (3, '2026-06-20', '11:00:00', 'ACTIVA', NULL, 'Online - Streaming', 500, 'NO', 'NO', 'Común'),
-  (4, '2026-06-25', '09:00:00', 'PENDIENTE', NULL, 'Salón VIP - Mendoza', 50, 'SI', 'SI', 'Platino'),
-  (5, '2026-06-22', '16:00:00', 'CERRADA', NULL, 'Rosario - Centro Cultural', 120, 'SI', 'NO', 'Oro');
 
 -- ---------------------------------------------------------------------------
 -- 6. CONFIGURACIÓN DE MONEDA POR SUBASTA (monomoneda)
