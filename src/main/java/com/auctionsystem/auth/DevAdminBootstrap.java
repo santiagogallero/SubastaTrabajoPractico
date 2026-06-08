@@ -8,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Profile("dev")
@@ -28,6 +29,7 @@ public class DevAdminBootstrap implements CommandLineRunner {
     private String bootstrapPassword;
 
     @Override
+    @Transactional
     public void run(String... args) {
         if (!bootstrapEnabled) {
             return;
@@ -47,7 +49,9 @@ public class DevAdminBootstrap implements CommandLineRunner {
         admin.setPasswordHash(passwordEncoder.encode(bootstrapPassword));
         admin.setEstado("ACTIVO");
         admin.setUpdatedAt(LocalDateTime.now());
-        admin.getRoles().add(adminRol);
+        if (admin.getRoles().stream().noneMatch(r -> "ADMIN".equals(r.getNombre()))) {
+            admin.getRoles().add(adminRol);
+        }
 
         usuarioAuthRepository.save(admin);
     }
