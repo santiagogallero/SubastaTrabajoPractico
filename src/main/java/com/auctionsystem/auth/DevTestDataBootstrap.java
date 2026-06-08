@@ -24,11 +24,18 @@ public class DevTestDataBootstrap implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        crearUsuario("postor@test.com", "test1234", "POSTOR");
-        crearUsuario("empleado@test.com", "test1234", "EMPLEADO");
+        // Caso 1: login exitoso
+        crearUsuario("test.ok@prueba.com",        "test1234", "POSTOR", "ACTIVO");
+        // Caso 4a: usuario pendiente de aprobación
+        crearUsuario("test.pendiente@prueba.com", "test1234", "POSTOR", "PENDIENTE");
+        // Caso 4b: usuario en revisión de admin
+        crearUsuario("test.revision@prueba.com",  "test1234", "POSTOR", "PENDIENTE_REVISION");
+        // Caso 4c: usuario pendiente de verificación de email
+        crearUsuario("test.email@prueba.com",     "test1234", "POSTOR", "PENDIENTE_VERIFICACION_EMAIL");
+        // Casos 2 y 3 (password incorrecto / email no existe) no requieren usuario especial
     }
 
-    private void crearUsuario(String email, String password, String rolNombre) {
+    private void crearUsuario(String email, String password, String rolNombre, String estado) {
         if (usuarioAuthRepository.existsByEmail(email)) {
             return;
         }
@@ -38,11 +45,11 @@ public class DevTestDataBootstrap implements CommandLineRunner {
         UsuarioAuth usuario = new UsuarioAuth();
         usuario.setEmail(email);
         usuario.setPasswordHash(passwordEncoder.encode(password));
-        usuario.setEstado("ACTIVO");
+        usuario.setEstado(estado);
         usuario.setCreatedAt(LocalDateTime.now());
         usuario.setUpdatedAt(LocalDateTime.now());
         usuario.getRoles().add(rol);
         usuarioAuthRepository.save(usuario);
-        log.info("[DEV] Usuario de prueba creado: {} / {}", email, password);
+        log.info("[DEV] Usuario de prueba creado: {} / {} (estado: {})", email, password, estado);
     }
 }
