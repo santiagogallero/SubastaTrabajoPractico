@@ -4,6 +4,7 @@ import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
 import com.auctionsystem.auth.dto.CurrentUserResponse;
 import com.auctionsystem.auth.dto.AdminApprovalRequest;
+import com.auctionsystem.auth.dto.MedioPagoResponse;
 import com.auctionsystem.auth.dto.PaymentVerificationRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
@@ -13,8 +14,8 @@ import com.auctionsystem.auth.dto.VerifyEmailCodeRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.security.Principal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,7 +42,10 @@ public class AuthController {
 
     @PostMapping("/register/stage2")
     public ResponseEntity<String> registerStage2(@Valid @RequestBody Stage2Payload payload) {
-        authService.completeStage2(payload.email(), payload.request());
+        authService.completeStage2(
+                payload.email(),
+                new Stage2RegistrationRequest(payload.numeroTramite(), payload.docFrenteUrl(), payload.docDorsoUrl())
+        );
         return ResponseEntity.ok("Registro etapa 2 completado");
     }
 
@@ -65,6 +69,12 @@ public class AuthController {
     ) {
         authService.registerPaymentMethods(principal.getName(), request);
         return ResponseEntity.ok("Medios de pago registrados");
+    }
+
+    @GetMapping("/payment-methods")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<MedioPagoResponse>> listPaymentMethods(Principal principal) {
+        return ResponseEntity.ok(authService.listarMediosPago(principal.getName()));
     }
 
     @PostMapping("/login")
@@ -94,7 +104,9 @@ public class AuthController {
 
     public record Stage2Payload(
             @NotBlank @Email String email,
-            @NotNull @Valid Stage2RegistrationRequest request
+            @NotBlank String numeroTramite,
+            @NotBlank String docFrenteUrl,
+            @NotBlank String docDorsoUrl
     ) {
     }
 }

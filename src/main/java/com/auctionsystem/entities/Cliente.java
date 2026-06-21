@@ -42,7 +42,7 @@ public class Cliente {
     @Column(name = "categoria", length = 10)
     private String categoria;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "verificador", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "verificador")
     private Empleado verificador;
 }

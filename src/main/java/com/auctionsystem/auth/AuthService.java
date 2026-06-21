@@ -3,19 +3,23 @@ package com.auctionsystem.auth;
 import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
 import com.auctionsystem.auth.dto.CurrentUserResponse;
+import com.auctionsystem.auth.dto.MedioPagoResponse;
 import com.auctionsystem.auth.dto.PaymentMethodRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
 import com.auctionsystem.auth.dto.Stage2RegistrationRequest;
 import com.auctionsystem.auth.dto.VerifyEmailCodeRequest;
+import com.auctionsystem.entities.Cliente;
 import com.auctionsystem.entities.Persona;
+import com.auctionsystem.repositories.ClienteRepository;
 import com.auctionsystem.repositories.PersonaRepository;
 import com.auctionsystem.services.MailService;
 import com.auctionsystem.verification.PersonVerificationService;
 import com.auctionsystem.verification.VerificationResult;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,6 +46,7 @@ public class AuthService {
     private final MedioPagoRepository medioPagoRepository;
         private final EmailVerificationCodeRepository emailVerificationCodeRepository;
     private final PersonaRepository personaRepository;
+    private final ClienteRepository clienteRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -257,7 +262,8 @@ public class AuthService {
                 RegistroPostor registro = registroPostorRepository.findByUsuarioId(usuario.getId())
                                 .orElseThrow(() -> new IllegalArgumentException("Registro de postor no encontrado"));
 
-                registro.setCategoria(categoria.toUpperCase(Locale.ROOT));
+                String categoriaNormalizada = categoria.toUpperCase(Locale.ROOT);
+                registro.setCategoria(categoriaNormalizada);
                 registro.setEtapa("APROBADO");
                 registro.setVerificadoAt(LocalDateTime.now());
                 registroPostorRepository.save(registro);
@@ -266,11 +272,49 @@ public class AuthService {
                 usuario.setUpdatedAt(LocalDateTime.now());
                 usuarioAuthRepository.save(usuario);
 
+                // El circuito de pujas valida la categoria sobre Cliente, no sobre RegistroPostor.
+                // Al aprobar, creamos/actualizamos el Cliente para que el postor pueda participar.
+                sincronizarClientePostor(usuario, categoriaNormalizada);
+
                 mailService.sendPlainText(
                                 usuario.getEmail(),
                                 "Cuenta aprobada",
                                 "Tu cuenta fue verificada y aprobada. Ya podes participar segun tu categoria."
                 );
+        }
+
+        private void sincronizarClientePostor(UsuarioAuth usuario, String categoria) {
+                if (usuario.getPersonaId() == null) {
+                        return;
+                }
+
+                Persona persona = personaRepository.findById(usuario.getPersonaId())
+                                .orElseThrow(() -> new IllegalStateException("Persona del usuario no encontrada"));
+
+                Cliente cliente = clienteRepository.findByPersonaId(persona.getId())
+                                .orElseGet(() -> Cliente.builder().persona(persona).build());
+                cliente.setPersona(persona);
+                cliente.setCategoria(categoria);
+                cliente.setAdmitido("si");
+                clienteRepository.save(cliente);
+        }
+
+        @Transactional(readOnly = true)
+        public List<MedioPagoResponse> listarMediosPago(String email) {
+                UsuarioAuth usuario = usuarioAuthRepository.findByEmail(email.toLowerCase(Locale.ROOT))
+                                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+                return medioPagoRepository.findByUsuarioId(usuario.getId()).stream()
+                                .map(m -> new MedioPagoResponse(
+                                                m.getId(),
+                                                m.getTipo(),
+                                                m.getAliasDescripcion(),
+                                                m.getMoneda(),
+                                                m.getMontoGarantia(),
+                                                Boolean.TRUE.equals(m.getVerificado()),
+                                                Boolean.TRUE.equals(m.getActivo())
+                                ))
+                                .toList();
         }
 
         @Transactional
@@ -304,12 +348,20 @@ public class AuthService {
                                 .map(Rol::getNombre)
                                 .collect(Collectors.toSet());
 
+                String categoria = null;
+                if (usuario.getPersonaId() != null) {
+                        categoria = clienteRepository.findByPersonaId(usuario.getPersonaId())
+                                        .map(Cliente::getCategoria)
+                                        .orElse(null);
+                }
+
                 return new CurrentUserResponse(
                                 usuario.getId(),
                                 usuario.getEmail(),
                                 usuario.getEstado(),
                                 usuario.getPersonaId(),
-                                roles
+                                roles,
+                                categoria
                 );
         }
 }

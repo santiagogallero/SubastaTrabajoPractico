@@ -50,4 +50,14 @@ public class RegistroDeSubasta {
 
     @Column(name = "comision", nullable = false, precision = 18, scale = 2)
     private BigDecimal comision;
+
+    /** SHIPPED o PICKUP (consigna: retiro personal pierde cobertura del seguro). */
+    @Column(name = "modalidadEntrega", length = 20)
+    private String modalidadEntrega;
+
+    @Column(name = "direccionEnvio", length = 500)
+    private String direccionEnvio;
+
+    @Column(name = "seguroVigenteTrasEntrega")
+    private Boolean seguroVigenteTrasEntrega;
 }

@@ -4,6 +4,7 @@ import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
 import com.auctionsystem.entities.Persona;
+import com.auctionsystem.repositories.ClienteRepository;
 import com.auctionsystem.repositories.PersonaRepository;
 import com.auctionsystem.services.MailService;
 import com.auctionsystem.verification.PersonVerificationService;
@@ -37,6 +38,7 @@ class AuthServiceTest {
     @Mock private MedioPagoRepository medioPagoRepository;
     @Mock private EmailVerificationCodeRepository emailVerificationCodeRepository;
     @Mock private PersonaRepository personaRepository;
+    @Mock private ClienteRepository clienteRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtService jwtService;

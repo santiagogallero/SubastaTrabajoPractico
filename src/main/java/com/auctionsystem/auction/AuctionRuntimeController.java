@@ -8,6 +8,7 @@ import com.auctionsystem.auction.dto.ConectarSubastaRequest;
 import com.auctionsystem.auction.dto.PujaHistorialItem;
 import com.auctionsystem.auction.dto.PujaResponse;
 import com.auctionsystem.auction.dto.PujarRequest;
+import com.auctionsystem.auction.dto.StreamingResponse;
 import com.auctionsystem.auction.dto.SubastaTimingResponse;
 import jakarta.validation.Valid;
 import java.security.Principal;
@@ -49,6 +50,12 @@ public class AuctionRuntimeController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SubastaTimingResponse> obtenerTiming(@PathVariable Integer subastaId) {
         return ResponseEntity.ok(auctionRuntimeService.obtenerTimingSubasta(subastaId));
+    }
+
+    @GetMapping("/subasta/{subastaId}/streaming")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<StreamingResponse> obtenerStreaming(@PathVariable Integer subastaId) {
+        return ResponseEntity.ok(auctionRuntimeService.obtenerStreaming(subastaId));
     }
 
     @PostMapping("/subasta/conectar")

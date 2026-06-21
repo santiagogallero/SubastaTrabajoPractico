@@ -45,7 +45,7 @@ public class Duenio {
     @Column(name = "calificacionRiesgo")
     private Integer calificacionRiesgo;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "verificador", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "verificador")
     private Empleado verificador;
 }

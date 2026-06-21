@@ -7,7 +7,12 @@ public record PagoEstadoDto(
         Integer registroSubastaId,
         String estadoPago,
         BigDecimal montoOfertado,
+        BigDecimal montoTotal,
         BigDecimal montoMulta,
+        BigDecimal multaPotencial,
+        String moneda,
+        String productoDescripcion,
+        String transaccionId,
         LocalDateTime fechaVencimiento,
         LocalDateTime fechaLimiteRegularizacion,
         boolean bloqueado

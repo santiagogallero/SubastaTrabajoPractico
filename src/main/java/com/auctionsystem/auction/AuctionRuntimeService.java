@@ -3,7 +3,10 @@ package com.auctionsystem.auction;
 import com.auctionsystem.auction.dto.PujaHistorialItem;
 import com.auctionsystem.auction.dto.PujaResponse;
 import com.auctionsystem.auction.dto.PujarRequest;
+import com.auctionsystem.auction.dto.StreamingResponse;
 import com.auctionsystem.auction.dto.SubastaTimingResponse;
+import com.auctionsystem.auction.realtime.BidEvent;
+import com.auctionsystem.auction.realtime.BidWebSocketHandler;
 import com.auctionsystem.auth.MedioPagoRepository;
 import com.auctionsystem.auth.UsuarioAuth;
 import com.auctionsystem.auth.UsuarioAuthRepository;
@@ -28,6 +31,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +51,7 @@ public class AuctionRuntimeService {
     private final ConexionSubastaActivaRepository conexionSubastaActivaRepository;
     private final SubastaConfigExtRepository subastaConfigExtRepository;
     private final ComplianceService complianceService;
+    private final BidWebSocketHandler bidWebSocketHandler;
 
     @Transactional
     public void configurarMoneda(Integer subastaId, String moneda) {
@@ -105,6 +111,21 @@ public class AuctionRuntimeService {
             nueva.setConectadoAt(LocalDateTime.now());
             conexionSubastaActivaRepository.save(nueva);
         }
+
+        asegurarAsistente(cliente, subasta);
+    }
+
+    private void asegurarAsistente(Cliente cliente, Subasta subasta) {
+        asistenteRepository.findByClienteIdAndSubastaId(cliente.getId(), subasta.getId())
+                .orElseGet(() -> {
+                    int numeroPostor = (int) (asistenteRepository.countBySubastaId(subasta.getId()) + 1);
+                    Asistente asistente = Asistente.builder()
+                            .cliente(cliente)
+                            .subasta(subasta)
+                            .numeroPostor(numeroPostor)
+                            .build();
+                    return asistenteRepository.save(asistente);
+                });
     }
 
     @Transactional
@@ -135,8 +156,8 @@ public class AuctionRuntimeService {
             throw new IllegalArgumentException("El item no pertenece a la subasta indicada");
         }
 
-        if (subasta.getEstado() != null && !"ABIERTA".equalsIgnoreCase(subasta.getEstado())) {
-            throw new IllegalArgumentException("Solo se puede pujar cuando la subasta esta ABIERTA");
+        if (!isSubastaAbierta(subasta.getEstado())) {
+            throw new IllegalArgumentException("Solo se puede pujar cuando la subasta esta abierta");
         }
 
         BigDecimal base = item.getPrecioBase().setScale(2, RoundingMode.HALF_UP);
@@ -170,6 +191,31 @@ public class AuctionRuntimeService {
                 .build();
         pujo = pujoRepository.save(pujo);
 
+        // Limites que debera respetar la *proxima* puja, calculados sobre la
+        // oferta recien aceptada (es lo que necesitan ver los demas postores).
+        BigDecimal incremento = base.multiply(new BigDecimal("0.01")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal siguienteMinimo = ofertaActual.add(incremento).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal siguienteMaximo = isCategoriaSinLimites(subasta.getCategoria())
+                ? null
+                : ofertaActual.add(base.multiply(new BigDecimal("0.20"))).setScale(2, RoundingMode.HALF_UP);
+
+        String nombrePostor = asistente.getCliente().getPersona() != null
+                ? asistente.getCliente().getPersona().getNombre()
+                : null;
+        BidEvent evento = new BidEvent(
+                BidEvent.TIPO_NUEVA_PUJA,
+                subasta.getId(),
+                item.getId(),
+                pujo.getId(),
+                asistente.getNumeroPostor(),
+                nombrePostor,
+                ofertaActual,
+                siguienteMinimo,
+                siguienteMaximo,
+                LocalDateTime.now().toString()
+        );
+        difundirPujaTrasCommit(subasta.getId(), evento);
+
         return new PujaResponse(
                 pujo.getId(),
                 item.getId(),
@@ -179,6 +225,24 @@ public class AuctionRuntimeService {
                 maximo,
                 "Puja registrada correctamente"
         );
+    }
+
+    /**
+     * Difunde el evento solo si la transaccion confirma, para no notificar
+     * pujas que terminen revirtiendose. Si no hay transaccion activa (p. ej.
+     * en tests unitarios) difunde de inmediato.
+     */
+    private void difundirPujaTrasCommit(Integer subastaId, BidEvent evento) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    bidWebSocketHandler.difundir(subastaId, evento);
+                }
+            });
+        } else {
+            bidWebSocketHandler.difundir(subastaId, evento);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -227,6 +291,13 @@ public class AuctionRuntimeService {
         }
 
         return new SubastaTimingResponse(subasta.getId(), duracion, inicio, fin, estado, minutosRestantes);
+    }
+
+    @Transactional(readOnly = true)
+    public StreamingResponse obtenerStreaming(Integer subastaId) {
+        Subasta subasta = subastaRepository.findById(subastaId)
+                .orElseThrow(() -> new IllegalArgumentException("Subasta no encontrada"));
+        return new StreamingResponse(subasta.getId(), subasta.getStreamingUrl());
     }
 
     private Cliente getClienteFromEmail(String email) {
@@ -312,6 +383,14 @@ public class AuctionRuntimeService {
             case "PLATINO" -> 5;
             default -> 0;
         };
+    }
+
+    private boolean isSubastaAbierta(String estado) {
+        if (estado == null) {
+            return true;
+        }
+        String normalized = estado.toUpperCase(Locale.ROOT);
+        return "ABIERTA".equals(normalized) || "ACTIVA".equals(normalized) || "EN_CURSO".equals(normalized);
     }
 
     private boolean isCategoriaSinLimites(String categoriaSubasta) {

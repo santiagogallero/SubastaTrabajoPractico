@@ -57,4 +57,13 @@ public class Subasta {
 
     @Column(name = "categoria", length = 10)
     private String categoria;
+
+    @Column(name = "streamingUrl", length = 500)
+    private String streamingUrl;
+
+    @Column(name = "depositoNombre", length = 200)
+    private String depositoNombre;
+
+    @Column(name = "depositoDireccion", length = 350)
+    private String depositoDireccion;
 }

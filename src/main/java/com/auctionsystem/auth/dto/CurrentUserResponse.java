@@ -7,6 +7,7 @@ public record CurrentUserResponse(
         String email,
         String estado,
         Integer personaId,
-        Set<String> roles
+        Set<String> roles,
+        String categoria
 ) {
 }

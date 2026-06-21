@@ -60,4 +60,19 @@ public class PagoSubastaExt {
 
     @Column(name = "fecha_pago")
     private LocalDateTime fechaPago;
+
+    @Column(name = "monto_total", precision = 18, scale = 2)
+    private BigDecimal montoTotal;
+
+    @Column(name = "moneda", length = 10)
+    private String moneda;
+
+    @Column(name = "producto_descripcion", length = 255)
+    private String productoDescripcion;
+
+    @Column(name = "medio_pago_id")
+    private Long medioPagoId;
+
+    @Column(name = "transaccion_id", length = 64)
+    private String transaccionId;
 }

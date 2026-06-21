@@ -5,6 +5,7 @@ import com.auctionsystem.auth.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -37,8 +38,12 @@ public class SecurityConfig {
                                 "/api-docs/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
-                                "/swagger-ui/**"
+                                "/swagger-ui/**",
+                                // Handshake WebSocket: la autenticacion se valida en AuctionHandshakeInterceptor
+                                "/ws/**"
                         ).permitAll()
+                        // Catalogo publico: cualquiera puede ver subastas y productos (el precio base se restringe a nivel de datos)
+                        .requestMatchers(HttpMethod.GET, "/api/subastas/**", "/api/productos/**", "/api/colecciones/**").permitAll()
                         .requestMatchers("/api/notifications/**").hasAnyRole("ADMIN", "EMPLEADO")
                         .requestMatchers("/api/auction-runtime/**").authenticated()
                         .anyRequest().authenticated()

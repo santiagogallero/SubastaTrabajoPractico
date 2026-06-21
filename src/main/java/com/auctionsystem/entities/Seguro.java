@@ -32,4 +32,10 @@ public class Seguro {
 
     @Column(name = "importe", nullable = false, precision = 18, scale = 2)
     private BigDecimal importe;
+
+    @Column(name = "contactoTelefono", length = 40)
+    private String contactoTelefono;
+
+    @Column(name = "contactoEmail", length = 150)
+    private String contactoEmail;
 }

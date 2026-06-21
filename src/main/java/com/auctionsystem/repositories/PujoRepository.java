@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PujoRepository extends JpaRepository<Pujo, Integer> {
 	Optional<Pujo> findTopByItemIdOrderByImporteDesc(Integer itemId);
 	List<Pujo> findByItemIdOrderByIdAsc(Integer itemId);
+	List<Pujo> findByAsistenteClienteId(Integer clienteId);
 }
