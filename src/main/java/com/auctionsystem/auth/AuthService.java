@@ -7,6 +7,7 @@ import com.auctionsystem.auth.dto.CurrentUserResponse;
 import com.auctionsystem.auth.dto.MedioPagoResponse;
 import com.auctionsystem.auth.dto.PaymentMethodRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
+import com.auctionsystem.auth.dto.RegistrationStatusResponse;
 import com.auctionsystem.auth.dto.ResetPasswordRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
@@ -187,11 +188,26 @@ public class AuthService {
                 usuario.setEstado("PENDIENTE");
                 usuario.setUpdatedAt(LocalDateTime.now());
                 usuarioAuthRepository.save(usuario);
+        }
 
-                mailService.sendPlainText(
-                                usuario.getEmail(),
-                                "Correo verificado",
-                                "Correo validado correctamente. Continua con la carga de documentacion para completar tu registro."
+        @Transactional(readOnly = true)
+        public RegistrationStatusResponse getRegistrationStatus(String email) {
+                String normalizedEmail = email.toLowerCase(Locale.ROOT);
+                UsuarioAuth usuario = usuarioAuthRepository.findByEmail(normalizedEmail)
+                                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+                RegistroPostor registro = registroPostorRepository.findByUsuarioId(usuario.getId())
+                                .orElseThrow(() -> new IllegalArgumentException("Registro de postor no encontrado"));
+
+                boolean requiereVerificacionEmail = "PENDIENTE_VERIFICACION_EMAIL".equalsIgnoreCase(usuario.getEstado());
+                boolean puedeCompletarDocumentacion = "EMAIL_VERIFICADO".equalsIgnoreCase(registro.getEtapa());
+
+                return new RegistrationStatusResponse(
+                                normalizedEmail,
+                                usuario.getEstado(),
+                                registro.getEtapa(),
+                                requiereVerificacionEmail,
+                                puedeCompletarDocumentacion
                 );
         }
 

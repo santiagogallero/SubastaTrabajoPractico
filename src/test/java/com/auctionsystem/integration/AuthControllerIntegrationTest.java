@@ -69,7 +69,7 @@ class AuthControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("etapa 1")));
+                .andExpect(content().string(containsString("codigo de verificacion")));
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.auctionsystem.auth.dto.ForgotPasswordRequest;
 import com.auctionsystem.auth.dto.MedioPagoResponse;
 import com.auctionsystem.auth.dto.PaymentVerificationRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
+import com.auctionsystem.auth.dto.RegistrationStatusResponse;
 import com.auctionsystem.auth.dto.ResetPasswordRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -39,7 +41,14 @@ public class AuthController {
     @PostMapping("/register/stage1")
     public ResponseEntity<String> registerStage1(@Valid @RequestBody Stage1RegistrationRequest request) {
         authService.registerStage1(request);
-        return ResponseEntity.ok("Registro etapa 1 completado");
+        return ResponseEntity.ok("Registro iniciado. Revisa tu correo e ingresa el codigo de verificacion para continuar.");
+    }
+
+    @GetMapping("/register/status")
+    public ResponseEntity<RegistrationStatusResponse> registrationStatus(
+            @RequestParam @NotBlank @Email String email
+    ) {
+        return ResponseEntity.ok(authService.getRegistrationStatus(email));
     }
 
     @PostMapping("/register/stage2")
@@ -60,7 +69,7 @@ public class AuthController {
     @PostMapping("/email/verify-code")
     public ResponseEntity<String> verifyEmailCode(@Valid @RequestBody VerifyEmailCodeRequest request) {
         authService.verifyEmailCode(request);
-        return ResponseEntity.ok("Correo verificado. Tu cuenta queda en revision.");
+        return ResponseEntity.ok("Correo verificado. Continua con la carga de documentacion.");
     }
 
     @PostMapping("/payment-methods")
