@@ -5,8 +5,10 @@ import com.auctionsystem.auth.UsuarioAuthRepository;
 import com.auctionsystem.duenio.dto.DuenioProductoRequest;
 import com.auctionsystem.duenio.dto.DuenioProductoResponse;
 import com.auctionsystem.entities.Duenio;
+import com.auctionsystem.entities.Empleado;
 import com.auctionsystem.entities.Producto;
 import com.auctionsystem.repositories.DuenioRepository;
+import com.auctionsystem.repositories.EmpleadoRepository;
 import com.auctionsystem.repositories.ProductoRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,10 +25,14 @@ public class DuenioProductoService {
     private final UsuarioAuthRepository usuarioAuthRepository;
     private final DuenioRepository duenioRepository;
     private final ProductoRepository productoRepository;
+    private final EmpleadoRepository empleadoRepository;
 
     @Transactional
     public DuenioProductoResponse registrarProducto(String email, DuenioProductoRequest request) {
         Duenio duenio = getDuenioFromEmail(email);
+
+        Empleado revisorPlaceholder = empleadoRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("No hay empleados registrados en el sistema"));
 
         Producto producto = Producto.builder()
                 .fecha(LocalDate.now())
@@ -39,6 +45,7 @@ public class DuenioProductoService {
                 .origenLicit(request.origenLicit())
                 .estadoInspeccion(Producto.ESTADO_PENDIENTE)
                 .fechaInspeccion(LocalDateTime.now())
+                .revisor(revisorPlaceholder)
                 .duenio(duenio)
                 .build();
 
