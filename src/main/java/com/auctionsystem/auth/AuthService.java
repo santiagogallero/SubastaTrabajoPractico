@@ -82,7 +82,7 @@ public class AuthService {
         UsuarioAuth usuario = new UsuarioAuth();
         usuario.setEmail(request.email().toLowerCase(Locale.ROOT));
         usuario.setPasswordHash(passwordEncoder.encode(request.password()));
-        usuario.setEstado("PENDIENTE");
+        usuario.setEstado("PENDIENTE_VERIFICACION_EMAIL");
         usuario.setPersonaId(persona.getId());
         usuario.setCreatedAt(LocalDateTime.now());
         usuario.setUpdatedAt(LocalDateTime.now());
@@ -97,11 +97,7 @@ public class AuthService {
         registro.setPaisOrigen(request.paisOrigen());
         registroPostorRepository.save(registro);
 
-        mailService.sendPlainText(
-                usuario.getEmail(),
-                "Registro etapa 1 completado",
-                "Tu registro etapa 1 fue recibido. Completa la etapa 2 cargando documentacion e identidad."
-        );
+        sendEmailVerificationCodeInternal(usuario);
     }
 
     @Transactional
@@ -111,6 +107,13 @@ public class AuthService {
 
         RegistroPostor registro = registroPostorRepository.findByUsuarioId(usuario.getId())
                 .orElseThrow(() -> new IllegalArgumentException("No existe etapa 1 para este usuario"));
+
+        if ("PENDIENTE_VERIFICACION_EMAIL".equalsIgnoreCase(usuario.getEstado())) {
+                throw new IllegalArgumentException("Debes verificar tu correo antes de continuar con la documentacion");
+        }
+        if (!"EMAIL_VERIFICADO".equalsIgnoreCase(registro.getEtapa())) {
+                throw new IllegalArgumentException("Debes verificar tu correo antes de continuar con la documentacion");
+        }
 
         Persona persona = personaRepository.findById(usuario.getPersonaId())
                 .orElseThrow(() -> new IllegalArgumentException("Persona asociada no encontrada"));
@@ -128,7 +131,7 @@ public class AuthService {
         registro.setDocFrenteUrl(request.docFrenteUrl());
         registro.setDocDorsoUrl(request.docDorsoUrl());
         registro.setNumeroTramite(request.numeroTramite());
-        registro.setEtapa("ETAPA_2_COMPLETA");
+        registro.setEtapa("PENDIENTE_REVISION_ADMIN");
         registro.setVerificacionExternaEstado("APROBADA");
         registro.setVerificacionExternaFuente(verification.source());
         registro.setVerificacionExternaDetalle(verification.detail());
@@ -137,16 +140,14 @@ public class AuthService {
                 registro.setMotivoRechazo(null);
         registroPostorRepository.save(registro);
 
-                usuario.setEstado("PENDIENTE_VERIFICACION_EMAIL");
+        usuario.setEstado("PENDIENTE_REVISION");
         usuario.setUpdatedAt(LocalDateTime.now());
         usuarioAuthRepository.save(usuario);
 
-                sendEmailVerificationCodeInternal(usuario);
-
         mailService.sendPlainText(
                 usuario.getEmail(),
-                                "Registro etapa 2 completado",
-                                "Te enviamos un codigo a tu correo para confirmar email. Una vez validado, tu cuenta quedara en revision de la empresa."
+                "Registro completado",
+                "Recibimos tu documentacion. Tu cuenta queda en revision de la empresa."
         );
     }
 
@@ -180,17 +181,17 @@ public class AuthService {
 
                 RegistroPostor registro = registroPostorRepository.findByUsuarioId(usuario.getId())
                                 .orElseThrow(() -> new IllegalArgumentException("Registro de postor no encontrado"));
-                registro.setEtapa("PENDIENTE_REVISION_ADMIN");
+                registro.setEtapa("EMAIL_VERIFICADO");
                 registroPostorRepository.save(registro);
 
-                usuario.setEstado("PENDIENTE_REVISION");
+                usuario.setEstado("PENDIENTE");
                 usuario.setUpdatedAt(LocalDateTime.now());
                 usuarioAuthRepository.save(usuario);
 
                 mailService.sendPlainText(
                                 usuario.getEmail(),
                                 "Correo verificado",
-                                "Correo validado correctamente. Ahora estamos verificando tus datos para aprobar tu cuenta."
+                                "Correo validado correctamente. Continua con la carga de documentacion para completar tu registro."
                 );
         }
 
