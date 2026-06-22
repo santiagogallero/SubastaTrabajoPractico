@@ -19,6 +19,9 @@ app:
     from-name: ${APP_MAIL_FROM_NAME:Auction System}
     mailersend:
       token: ${MAILERSEND_API_TOKEN:}
+    resend:
+      token: ${RESEND_API_TOKEN:}
+    override-to: ${APP_MAIL_OVERRIDE_TO:}
   security:
     jwt-secret: ${JWT_SECRET_BASE64:WmY0bSt3N3N4QTR3dTlTRnk4Tm1jWmJRNlV4U3M5VTJ2RFBrYmVFM3V4VT0=}
     jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:7200}

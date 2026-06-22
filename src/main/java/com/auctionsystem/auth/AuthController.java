@@ -4,9 +4,11 @@ import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
 import com.auctionsystem.auth.dto.CurrentUserResponse;
 import com.auctionsystem.auth.dto.AdminApprovalRequest;
+import com.auctionsystem.auth.dto.ForgotPasswordRequest;
 import com.auctionsystem.auth.dto.MedioPagoResponse;
 import com.auctionsystem.auth.dto.PaymentVerificationRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
+import com.auctionsystem.auth.dto.ResetPasswordRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
 import com.auctionsystem.auth.dto.Stage2RegistrationRequest;
@@ -75,6 +77,18 @@ public class AuthController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MedioPagoResponse>> listPaymentMethods(Principal principal) {
         return ResponseEntity.ok(authService.listarMediosPago(principal.getName()));
+    }
+
+    @PostMapping("/password/forgot")
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok("Si el email esta registrado, te enviamos un codigo para restablecer la contrasena");
+    }
+
+    @PostMapping("/password/reset")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok("Contrasena restablecida correctamente");
     }
 
     @PostMapping("/login")

@@ -8,7 +8,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      mailpit:
+      mailserver:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: dev
@@ -18,9 +18,16 @@ services:
       DB_NAME: ${DB_NAME:-auctiondb}
       DB_USER: ${DB_USER:-auction_user}
       DB_PASSWORD: ${DB_PASSWORD:-auction_pass}
-      MAIL_HOST: mailpit
-      MAIL_PORT: 1025
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
       APP_MAIL_FROM: ${APP_MAIL_FROM:-no-reply@auction.local}
+      APP_MAIL_PROVIDER: ${APP_MAIL_PROVIDER:-smtp}
+      RESEND_API_TOKEN: ${RESEND_API_TOKEN:-}
+      APP_MAIL_OVERRIDE_TO: ${APP_MAIL_OVERRIDE_TO:-}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-WmY0bSt3N3N4QTR3dTlTRnk4Tm1jWmJRNlV4U3M5VTJ2RFBrYmVFM3V4VT0=}
       JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-7200}
       PERSON_VERIFICATION_PROVIDER: ${PERSON_VERIFICATION_PROVIDER:-mock}
@@ -51,13 +58,15 @@ services:
       timeout: 5s
       retries: 10
 
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: auction-mailpit
+  mailserver:
+    build:
+      context: ./mailserver
+      dockerfile: Dockerfile
+    container_name: auction-mailserver
     restart: unless-stopped
     ports:
-      - "${MAIL_PORT:-1025}:1025"
-      - "${MAIL_UI_PORT:-8025}:8025"
+      - "1025:1025"
+      - "8025:8025"
 
 volumes:
   mysql_data:

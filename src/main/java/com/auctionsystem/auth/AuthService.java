@@ -1,18 +1,22 @@
 package com.auctionsystem.auth;
 
+import com.auctionsystem.auth.dto.ForgotPasswordRequest;
 import com.auctionsystem.auth.dto.LoginRequest;
 import com.auctionsystem.auth.dto.LoginResponse;
 import com.auctionsystem.auth.dto.CurrentUserResponse;
 import com.auctionsystem.auth.dto.MedioPagoResponse;
 import com.auctionsystem.auth.dto.PaymentMethodRequest;
 import com.auctionsystem.auth.dto.RegisterPaymentMethodsRequest;
+import com.auctionsystem.auth.dto.ResetPasswordRequest;
 import com.auctionsystem.auth.dto.SendEmailVerificationCodeRequest;
 import com.auctionsystem.auth.dto.Stage1RegistrationRequest;
 import com.auctionsystem.auth.dto.Stage2RegistrationRequest;
 import com.auctionsystem.auth.dto.VerifyEmailCodeRequest;
 import com.auctionsystem.entities.Cliente;
+import com.auctionsystem.entities.Empleado;
 import com.auctionsystem.entities.Persona;
 import com.auctionsystem.repositories.ClienteRepository;
+import com.auctionsystem.repositories.EmpleadoRepository;
 import com.auctionsystem.repositories.PersonaRepository;
 import com.auctionsystem.services.MailService;
 import com.auctionsystem.verification.PersonVerificationService;
@@ -39,6 +43,8 @@ public class AuthService {
         private static final int EMAIL_CODE_EXPIRATION_MINUTES = 10;
         private static final int EMAIL_CODE_MAX_ATTEMPTS = 5;
         private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+        private static final String TYPE_EMAIL_VERIFICATION = "EMAIL_VERIFICATION";
+        private static final String TYPE_PASSWORD_RESET = "PASSWORD_RESET";
 
     private final UsuarioAuthRepository usuarioAuthRepository;
     private final RolRepository rolRepository;
@@ -47,6 +53,7 @@ public class AuthService {
         private final EmailVerificationCodeRepository emailVerificationCodeRepository;
     private final PersonaRepository personaRepository;
     private final ClienteRepository clienteRepository;
+    private final EmpleadoRepository empleadoRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -166,31 +173,10 @@ public class AuthService {
                 }
 
                 EmailVerificationCode verificationCode = emailVerificationCodeRepository
-                                .findTopByEmailOrderByCreatedAtDesc(normalizedEmail)
+                                .findTopByEmailAndTypeOrderByCreatedAtDesc(normalizedEmail, TYPE_EMAIL_VERIFICATION)
                                 .orElseThrow(() -> new IllegalArgumentException("No existe codigo activo para este usuario"));
 
-                if (verificationCode.isUsed()) {
-                        throw new IllegalArgumentException("El codigo ya fue utilizado");
-                }
-
-                if (verificationCode.getExpiresAt().isBefore(LocalDateTime.now())) {
-                        verificationCode.setUsed(true);
-                        emailVerificationCodeRepository.save(verificationCode);
-                        throw new IllegalArgumentException("El codigo expiro. Solicita uno nuevo");
-                }
-
-                if (!verificationCode.getCode().equals(request.code())) {
-                        int attempts = verificationCode.getAttempts() + 1;
-                        verificationCode.setAttempts(attempts);
-                        if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
-                                verificationCode.setUsed(true);
-                        }
-                        emailVerificationCodeRepository.save(verificationCode);
-                        throw new IllegalArgumentException("Codigo invalido");
-                }
-
-                verificationCode.setUsed(true);
-                emailVerificationCodeRepository.save(verificationCode);
+                validateCode(verificationCode, request.code());
 
                 RegistroPostor registro = registroPostorRepository.findByUsuarioId(usuario.getId())
                                 .orElseThrow(() -> new IllegalArgumentException("Registro de postor no encontrado"));
@@ -206,6 +192,87 @@ public class AuthService {
                                 "Correo verificado",
                                 "Correo validado correctamente. Ahora estamos verificando tus datos para aprobar tu cuenta."
                 );
+        }
+
+        @Transactional
+        public void forgotPassword(ForgotPasswordRequest request) {
+                String normalizedEmail = request.email().toLowerCase(Locale.ROOT);
+                // Si no existe el usuario, respondemos igual para no revelar si el email está registrado
+                if (!usuarioAuthRepository.existsByEmail(normalizedEmail)) {
+                        return;
+                }
+
+                for (EmailVerificationCode previous : emailVerificationCodeRepository
+                                .findByEmailAndTypeAndUsedFalse(normalizedEmail, TYPE_PASSWORD_RESET)) {
+                        previous.setUsed(true);
+                        emailVerificationCodeRepository.save(previous);
+                }
+
+                String generatedCode = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+                EmailVerificationCode resetCode = new EmailVerificationCode();
+                resetCode.setEmail(normalizedEmail);
+                resetCode.setType(TYPE_PASSWORD_RESET);
+                resetCode.setCode(generatedCode);
+                resetCode.setCreatedAt(LocalDateTime.now());
+                resetCode.setExpiresAt(LocalDateTime.now().plusMinutes(EMAIL_CODE_EXPIRATION_MINUTES));
+                resetCode.setAttempts(0);
+                resetCode.setUsed(false);
+                emailVerificationCodeRepository.save(resetCode);
+
+                mailService.sendPlainText(
+                                normalizedEmail,
+                                "Restablecer contrasena",
+                                "Tu codigo para restablecer la contrasena es: " + generatedCode
+                                + ". Vence en " + EMAIL_CODE_EXPIRATION_MINUTES + " minutos."
+                );
+        }
+
+        @Transactional
+        public void resetPassword(ResetPasswordRequest request) {
+                String normalizedEmail = request.email().toLowerCase(Locale.ROOT);
+                UsuarioAuth usuario = usuarioAuthRepository.findByEmail(normalizedEmail)
+                                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+                EmailVerificationCode resetCode = emailVerificationCodeRepository
+                                .findTopByEmailAndTypeOrderByCreatedAtDesc(normalizedEmail, TYPE_PASSWORD_RESET)
+                                .orElseThrow(() -> new IllegalArgumentException("No existe un codigo de restablecimiento activo"));
+
+                validateCode(resetCode, request.code());
+
+                usuario.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+                usuario.setUpdatedAt(LocalDateTime.now());
+                usuarioAuthRepository.save(usuario);
+
+                mailService.sendPlainText(
+                                normalizedEmail,
+                                "Contrasena actualizada",
+                                "Tu contrasena fue restablecida correctamente."
+                );
+        }
+
+        private void validateCode(EmailVerificationCode verificationCode, String inputCode) {
+                if (verificationCode.isUsed()) {
+                        throw new IllegalArgumentException("El codigo ya fue utilizado");
+                }
+
+                if (verificationCode.getExpiresAt().isBefore(LocalDateTime.now())) {
+                        verificationCode.setUsed(true);
+                        emailVerificationCodeRepository.save(verificationCode);
+                        throw new IllegalArgumentException("El codigo expiro. Solicita uno nuevo");
+                }
+
+                if (!verificationCode.getCode().equals(inputCode)) {
+                        int attempts = verificationCode.getAttempts() + 1;
+                        verificationCode.setAttempts(attempts);
+                        if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+                                verificationCode.setUsed(true);
+                        }
+                        emailVerificationCodeRepository.save(verificationCode);
+                        throw new IllegalArgumentException("Codigo invalido");
+                }
+
+                verificationCode.setUsed(true);
+                emailVerificationCodeRepository.save(verificationCode);
         }
 
         @Transactional
@@ -232,7 +299,8 @@ public class AuthService {
 
         private void sendEmailVerificationCodeInternal(UsuarioAuth usuario) {
                 String normalizedEmail = usuario.getEmail().toLowerCase(Locale.ROOT);
-                for (EmailVerificationCode previousCode : emailVerificationCodeRepository.findByEmailAndUsedFalse(normalizedEmail)) {
+                for (EmailVerificationCode previousCode : emailVerificationCodeRepository
+                                .findByEmailAndTypeAndUsedFalse(normalizedEmail, TYPE_EMAIL_VERIFICATION)) {
                         previousCode.setUsed(true);
                         emailVerificationCodeRepository.save(previousCode);
                 }
@@ -240,6 +308,7 @@ public class AuthService {
                 String generatedCode = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
                 EmailVerificationCode verificationCode = new EmailVerificationCode();
                 verificationCode.setEmail(normalizedEmail);
+                verificationCode.setType(TYPE_EMAIL_VERIFICATION);
                 verificationCode.setCode(generatedCode);
                 verificationCode.setCreatedAt(LocalDateTime.now());
                 verificationCode.setExpiresAt(LocalDateTime.now().plusMinutes(EMAIL_CODE_EXPIRATION_MINUTES));
@@ -291,11 +360,17 @@ public class AuthService {
                 Persona persona = personaRepository.findById(usuario.getPersonaId())
                                 .orElseThrow(() -> new IllegalStateException("Persona del usuario no encontrada"));
 
+                Empleado verificador = empleadoRepository.findAll().stream()
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "No existe ningun empleado en el sistema para asignar como verificador"));
+
                 Cliente cliente = clienteRepository.findByPersonaId(persona.getId())
                                 .orElseGet(() -> Cliente.builder().persona(persona).build());
                 cliente.setPersona(persona);
                 cliente.setCategoria(categoria);
                 cliente.setAdmitido("si");
+                cliente.setVerificador(verificador);
                 clienteRepository.save(cliente);
         }
 
