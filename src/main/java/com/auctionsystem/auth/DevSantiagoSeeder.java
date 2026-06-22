@@ -109,6 +109,7 @@ public class DevSantiagoSeeder {
                             .persona(persona)
                             .admitido("si")
                             .categoria(categoria)
+                            .verificador(empleado)
                             .build()));
 
             log.info("[DEV] Usuario creado: {} / {} (categoria: {})", email, PASSWORD, categoria);
