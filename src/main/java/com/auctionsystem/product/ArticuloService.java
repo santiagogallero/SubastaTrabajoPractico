@@ -71,6 +71,9 @@ public class ArticuloService {
 
         Duenio duenio = obtenerOCrearDuenio(email);
 
+        Empleado empleadoPlaceholder = empleadoRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("No hay empleados registrados en el sistema"));
+
         Producto producto = Producto.builder()
                 .fecha(LocalDate.now())
                 .disponible("no")
@@ -82,6 +85,7 @@ public class ArticuloService {
                 .declaraPropiedad(true)
                 .origenLicit(true)
                 .estadoInspeccion(Producto.ESTADO_PENDIENTE)
+                .revisor(empleadoPlaceholder)
                 .duenio(duenio)
                 .build();
         producto = productoRepository.save(producto);
@@ -152,9 +156,14 @@ public class ArticuloService {
     private Duenio obtenerOCrearDuenio(String email) {
         Persona persona = personaDe(email);
         return duenioRepository.findById(persona.getId())
-                .orElseGet(() -> duenioRepository.save(Duenio.builder()
-                        .persona(persona)
-                        .build()));
+                .orElseGet(() -> {
+                    Empleado verificador = empleadoRepository.findAll().stream().findFirst()
+                            .orElseThrow(() -> new IllegalStateException("No hay empleados registrados en el sistema"));
+                    return duenioRepository.save(Duenio.builder()
+                            .persona(persona)
+                            .verificador(verificador)
+                            .build());
+                });
     }
 
     private void guardarFotos(Producto producto, List<String> fotos) {
