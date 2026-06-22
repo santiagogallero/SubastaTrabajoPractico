@@ -5,27 +5,23 @@ services:
       dockerfile: Dockerfile
     container_name: auction-backend
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       mysql:
         condition: service_healthy
-      mailserver:
-        condition: service_started
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev,external-mail}
       SERVER_PORT: 8080
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:-auctiondb}
       DB_USER: ${DB_USER:-auction_user}
       DB_PASSWORD: ${DB_PASSWORD:-auction_pass}
-      MAIL_HOST: ${MAIL_HOST:-mailpit}
-      MAIL_PORT: ${MAIL_PORT:-1025}
-      MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
-      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
-      APP_MAIL_FROM: ${APP_MAIL_FROM:-no-reply@auction.local}
-      APP_MAIL_PROVIDER: ${APP_MAIL_PROVIDER:-smtp}
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-onboarding@resend.dev}
+      APP_MAIL_FROM_NAME: ${APP_MAIL_FROM_NAME:-Auction System}
+      APP_MAIL_PROVIDER: ${APP_MAIL_PROVIDER:-resend}
       RESEND_API_TOKEN: ${RESEND_API_TOKEN:-}
       APP_MAIL_OVERRIDE_TO: ${APP_MAIL_OVERRIDE_TO:-}
       JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-WmY0bSt3N3N4QTR3dTlTRnk4Tm1jWmJRNlV4U3M5VTJ2RFBrYmVFM3V4VT0=}
@@ -59,6 +55,7 @@ services:
       retries: 10
 
   mailserver:
+    profiles: ["local-mail"]
     build:
       context: ./mailserver
       dockerfile: Dockerfile

@@ -1,0 +1,11 @@
+# Real outbound email — nothing stored locally.
+# Activate with: SPRING_PROFILES_ACTIVE=dev,external-mail
+# Requires RESEND_API_TOKEN and APP_MAIL_FROM (see .env.example).
+
+app:
+  mail:
+    provider: resend
+
+logging:
+  level:
+    com.auctionsystem.services.MailService: INFO

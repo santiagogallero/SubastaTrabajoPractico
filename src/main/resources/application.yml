@@ -16,6 +16,7 @@ springdoc:
 app:
   mail:
     provider: ${APP_MAIL_PROVIDER:smtp}
+    from: ${APP_MAIL_FROM:no-reply@auction.local}
     from-name: ${APP_MAIL_FROM_NAME:Auction System}
     mailersend:
       token: ${MAILERSEND_API_TOKEN:}
