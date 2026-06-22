@@ -78,13 +78,15 @@ class AuthServiceTest {
             return u;
         });
         when(registroPostorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(emailVerificationCodeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         authService.registerStage1(requestValido);
 
         verify(usuarioAuthRepository).save(argThat(u ->
-                "juan@test.com".equals(u.getEmail()) && "PENDIENTE".equals(u.getEstado())
+                "juan@test.com".equals(u.getEmail()) && "PENDIENTE_VERIFICACION_EMAIL".equals(u.getEstado())
         ));
-        verify(mailService).sendPlainText(eq("juan@test.com"), anyString(), anyString());
+        verify(emailVerificationCodeRepository).save(any());
+        verify(mailService).sendPlainText(eq("juan@test.com"), eq("Codigo de verificacion"), contains("Tu codigo de verificacion es:"));
     }
 
     @Test
