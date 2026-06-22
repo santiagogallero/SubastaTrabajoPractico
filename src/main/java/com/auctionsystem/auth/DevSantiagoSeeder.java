@@ -5,7 +5,6 @@ import com.auctionsystem.auction.SubastaConfigExtRepository;
 import com.auctionsystem.entities.Catalogo;
 import com.auctionsystem.entities.Cliente;
 import com.auctionsystem.entities.Duenio;
-import com.auctionsystem.repositories.DuenioRepository;
 import com.auctionsystem.entities.Empleado;
 import com.auctionsystem.entities.ItemCatalogo;
 import com.auctionsystem.entities.Persona;
@@ -41,12 +40,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class DevSantiagoSeeder {
 
     private static final String PASSWORD = "Test1234!";
-    private static final String SANTIAGO_EMAIL = "santiago1gallero@gmail.com";
 
     // email | documento | nombre | categoriaCliente | esDuenio
     private static final List<String[]> DEV_USERS = List.of(
-            new String[]{SANTIAGO_EMAIL,             "30999888", "Santiago Gallero", "PLATINO", "true"},
-            new String[]{"jiloji8868@dyleris.com",   "30999777", "Jiloji Dev",       "COMUN",   "false"}
+            new String[]{"santiago1gallero@gmail.com", "30999888", "Santiago Gallero", "PLATINO", "true"},
+            new String[]{"jiloji8868@dyleris.com",     "30999777", "Jiloji Dev",       "COMUN",   "false"},
+            new String[]{"dueniotest@auction.com",     "30999555", "Duenio Test",      "COMUN",   "true"}
     );
 
     private final UsuarioAuthRepository usuarioAuthRepository;
@@ -55,18 +54,23 @@ public class DevSantiagoSeeder {
     private final ClienteRepository clienteRepository;
     private final MedioPagoRepository medioPagoRepository;
     private final DuenioRepository duenioRepository;
+    private final EmpleadoRepository empleadoRepository;
     private final SubastaRepository subastaRepository;
     private final SubastaConfigExtRepository subastaConfigExtRepository;
     private final CatalogoRepository catalogoRepository;
     private final ItemCatalogoRepository itemCatalogoRepository;
     private final ProductoRepository productoRepository;
-    private final EmpleadoRepository empleadoRepository;
     private final PasswordEncoder passwordEncoder;
 
     @EventListener(ApplicationReadyEvent.class)
     @Order(10)
     @Transactional
     public void run() {
+        Empleado empleado = empleadoRepository.findAll().stream().findFirst().orElse(null);
+        if (empleado == null) {
+            log.warn("[DEV] Sin empleado en DB — los Duenios se crearan en el proximo reinicio");
+        }
+
         Rol rolPostor = rolRepository.findByNombre("POSTOR")
                 .orElseThrow(() -> new IllegalStateException("Rol POSTOR no encontrado"));
         Rol rolDuenio = rolRepository.findByNombre("DUENIO")
@@ -74,13 +78,14 @@ public class DevSantiagoSeeder {
 
         for (String[] u : DEV_USERS) {
             boolean esDuenio = Boolean.parseBoolean(u[4]);
-            seedUsuario(u[0], u[1], u[2], u[3], rolPostor, esDuenio ? rolDuenio : null);
+            seedUsuario(u[0], u[1], u[2], u[3], rolPostor, esDuenio ? rolDuenio : null, empleado);
         }
 
-        seedSubastasExtra();
+        seedSubastasExtra(empleado);
     }
 
-    private void seedUsuario(String email, String documento, String nombre, String categoria, Rol rolPostor, Rol rolDuenio) {
+    private void seedUsuario(String email, String documento, String nombre, String categoria,
+                              Rol rolPostor, Rol rolDuenio, Empleado empleado) {
         UsuarioAuth usuario = usuarioAuthRepository.findByEmail(email).orElseGet(() -> {
             Persona persona = personaRepository.save(Persona.builder()
                     .documento(documento)
@@ -120,16 +125,16 @@ public class DevSantiagoSeeder {
                 log.info("[DEV] Rol DUENIO agregado a {}", email);
             }
 
-            // Crear entidad Duenio si no existe (Duenio.id == Persona.id)
-            if (usuario.getPersonaId() != null) {
+            // Crear entidad Duenio si no existe y hay un empleado disponible
+            if (usuario.getPersonaId() != null && empleado != null) {
                 duenioRepository.findById(usuario.getPersonaId()).orElseGet(() -> {
-                    Persona persona = personaRepository.findById(usuario.getPersonaId())
-                            .orElseThrow();
+                    Persona persona = personaRepository.findById(usuario.getPersonaId()).orElseThrow();
                     Duenio duenio = duenioRepository.save(Duenio.builder()
                             .persona(persona)
                             .verificacionFinanciera("si")
                             .verificacionJudicial("si")
-                            .calificacionRiesgo(80)
+                            .calificacionRiesgo(5)
+                            .verificador(empleado)
                             .build());
                     log.info("[DEV] Entidad Duenio creada para {}", email);
                     return duenio;
@@ -150,7 +155,6 @@ public class DevSantiagoSeeder {
 
         boolean tieneMedioVerificado = medioPagoRepository
                 .existsByUsuarioIdAndVerificadoTrueAndActivoTrue(usuario.getId());
-
         if (!tieneMedioVerificado) {
             MedioPago medio = new MedioPago();
             medio.setUsuario(usuario);
@@ -165,7 +169,7 @@ public class DevSantiagoSeeder {
         }
     }
 
-    private void seedSubastasExtra() {
+    private void seedSubastasExtra(Empleado empleado) {
         List<Subasta> existentes = subastaRepository.findAll();
 
         boolean tieneOroAbierta = existentes.stream()
@@ -173,17 +177,20 @@ public class DevSantiagoSeeder {
         boolean tienePlatinoAbierta = existentes.stream()
                 .anyMatch(s -> "PLATINO".equalsIgnoreCase(s.getCategoria()) && "ABIERTA".equalsIgnoreCase(s.getEstado()));
 
-        Empleado empleado = empleadoRepository.findAll().stream().findFirst().orElse(null);
         Duenio duenio = duenioRepository.findAll().stream().findFirst().orElse(null);
 
-        if (!tieneOroAbierta && duenio != null) {
+        if (empleado == null || duenio == null) {
+            return;
+        }
+
+        if (!tieneOroAbierta) {
             crearSubastaConItem("ORO", "Sede Palermo - Buenos Aires", duenio, empleado,
                     "Collar de oro 18k", "Collar artesanal de oro 18 quilates con rubies naturales.",
                     new BigDecimal("50000.00"));
             log.info("[DEV] Subasta ABIERTA ORO creada");
         }
 
-        if (!tienePlatinoAbierta && duenio != null) {
+        if (!tienePlatinoAbierta) {
             crearSubastaConItem("PLATINO", "Salon VIP - Puerto Madero", duenio, empleado,
                     "Diamante talla brillante 2ct", "Diamante certificado GIA, talla brillante, 2 quilates, color D, pureza VVS1.",
                     new BigDecimal("200000.00"));
