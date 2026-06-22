@@ -35,6 +35,6 @@ public class Foto {
     private Producto producto;
 
     @JdbcTypeCode(SqlTypes.BLOB)
-    @Column(name = "foto", nullable = false)
+    @Column(name = "foto", nullable = false, columnDefinition = "longblob")
     private byte[] foto;
 }
