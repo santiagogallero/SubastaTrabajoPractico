@@ -1,7 +1,10 @@
 package com.auctionsystem.controllers;
 
 import com.auctionsystem.entities.Subasta;
+import com.auctionsystem.repositories.ClienteRepository;
+import com.auctionsystem.auth.UsuarioAuthRepository;
 import com.auctionsystem.services.SubastaService;
+import java.security.Principal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,10 +23,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class SubastaController {
 
     private final SubastaService subastaService;
+    private final UsuarioAuthRepository usuarioAuthRepository;
+    private final ClienteRepository clienteRepository;
 
     @GetMapping
-    public List<Subasta> findAll() {
-        return subastaService.findAll();
+    public List<Subasta> findAll(Principal principal) {
+        String categoria = resolveCategoria(principal);
+        return subastaService.findAllAccesibles(categoria);
+    }
+
+    private String resolveCategoria(Principal principal) {
+        if (principal == null) return null;
+        return usuarioAuthRepository.findByEmail(principal.getName())
+                .filter(u -> u.getPersonaId() != null)
+                .flatMap(u -> clienteRepository.findByPersonaId(u.getPersonaId()))
+                .map(c -> c.getCategoria())
+                .orElse(null);
     }
 
     @GetMapping("/{id}")

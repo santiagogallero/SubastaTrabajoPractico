@@ -43,13 +43,7 @@ public class PersonVerificationService {
     }
 
     private VerificationResult verifyMock(String documento, String numeroTramite, String nombre, String paisOrigen) {
-        if (!"ARGENTINA".equalsIgnoreCase(paisOrigen) && !"AR".equalsIgnoreCase(paisOrigen)) {
-            return new VerificationResult(false, "MOCK_AR", "La validacion de numero de tramite mock aplica solo AR", nombre, paisOrigen);
-        }
-        if (numeroTramite == null || numeroTramite.length() < 8) {
-            return new VerificationResult(false, "MOCK_AR", "Numero de tramite invalido", nombre, paisOrigen);
-        }
-        return new VerificationResult(true, "MOCK_AR", "Validacion mock aprobada", nombre, "ARGENTINA");
+        return new VerificationResult(true, "MOCK", "Validacion mock aprobada", nombre, paisOrigen);
     }
 
     private VerificationResult verifyAgainstRenaper(String documento, String numeroTramite, String nombre, String paisOrigen) {
