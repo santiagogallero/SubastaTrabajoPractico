@@ -1,6 +1,7 @@
 package com.auctionsystem.chat;
 
 import com.auctionsystem.chat.dto.ConversacionDto;
+import com.auctionsystem.chat.dto.CrearConversacionRequest;
 import com.auctionsystem.chat.dto.CrearConversacionResponse;
 import com.auctionsystem.chat.dto.EnviarMensajeRequest;
 import com.auctionsystem.chat.dto.MensajeChatDto;
@@ -27,8 +28,23 @@ public class VerificacionChatController {
 
     @PostMapping("/conversaciones")
     @PreAuthorize("hasRole('DUENIO')")
-    public ResponseEntity<CrearConversacionResponse> crearConversacion(Principal principal) {
-        return ResponseEntity.ok(chatService.crearConversacionDuenio(principal.getName()));
+    public ResponseEntity<CrearConversacionResponse> crearConversacion(
+            @RequestBody(required = false) CrearConversacionRequest request,
+            Principal principal) {
+        Integer productoId = request != null ? request.productoId() : null;
+        return ResponseEntity.ok(chatService.crearConversacionDuenio(principal.getName(), productoId));
+    }
+
+    @GetMapping("/productos/{productoId}/conversacion")
+    @PreAuthorize("hasAnyRole('DUENIO','ADMIN','EMPLEADO')")
+    public ResponseEntity<ConversacionDto> obtenerConversacionPorProducto(
+            @PathVariable Integer productoId,
+            Principal principal,
+            Authentication auth) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_DUENIO"))) {
+            return ResponseEntity.ok(chatService.obtenerOCrearPorProducto(productoId, principal.getName()));
+        }
+        return ResponseEntity.ok(chatService.obtenerConversacionAdminPorProducto(productoId));
     }
 
     @PostMapping("/conversaciones/{conversacionId}/tomar")

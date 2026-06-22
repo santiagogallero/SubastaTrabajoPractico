@@ -1,6 +1,7 @@
 package com.auctionsystem.chat;
 
 import com.auctionsystem.auth.UsuarioAuth;
+import com.auctionsystem.entities.Producto;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -31,6 +32,10 @@ public class VerificacionChatConversacion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "empleado_usuario_id")
     private UsuarioAuth empleadoUsuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "producto_id")
+    private Producto producto;
 
     @Column(name = "estado", nullable = false, length = 20)
     private String estado;

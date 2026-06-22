@@ -7,6 +7,11 @@ public record ConversacionDto(
         Long duenioUsuarioId,
         Long empleadoUsuarioId,
         String estado,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Integer productoId,
+        String productoTitulo,
+        String productoEstadoInspeccion,
+        String productoMotivoRechazo,
+        String primeraFotoBase64
 ) {
 }

@@ -5,7 +5,12 @@ import com.auctionsystem.auth.UsuarioAuthRepository;
 import com.auctionsystem.chat.dto.ConversacionDto;
 import com.auctionsystem.chat.dto.CrearConversacionResponse;
 import com.auctionsystem.chat.dto.MensajeChatDto;
+import com.auctionsystem.entities.Foto;
+import com.auctionsystem.entities.Producto;
+import com.auctionsystem.repositories.FotoRepository;
+import com.auctionsystem.repositories.ProductoRepository;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -21,19 +26,63 @@ public class VerificacionChatService {
     private final UsuarioAuthRepository usuarioAuthRepository;
     private final VerificacionChatConversacionRepository conversacionRepository;
     private final VerificacionChatMensajeRepository mensajeRepository;
+    private final ProductoRepository productoRepository;
+    private final FotoRepository fotoRepository;
 
     @Transactional
-    public CrearConversacionResponse crearConversacionDuenio(String email) {
+    public CrearConversacionResponse crearConversacionDuenio(String email, Integer productoId) {
         UsuarioAuth duenio = getUsuarioByEmail(email);
         ensureTieneRol(duenio, "DUENIO");
 
+        Producto producto = null;
+        if (productoId != null) {
+            producto = productoRepository.findById(productoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+            // Reusar si ya existe conversacion para este producto
+            var existente = conversacionRepository.findByProductoId(productoId);
+            if (existente.isPresent()) {
+                var c = existente.get();
+                return new CrearConversacionResponse(c.getId(), c.getEstado());
+            }
+        }
+
         VerificacionChatConversacion conversacion = new VerificacionChatConversacion();
         conversacion.setDuenioUsuario(duenio);
+        conversacion.setProducto(producto);
         conversacion.setEstado("ABIERTA");
         conversacion.setCreatedAt(LocalDateTime.now());
         conversacion.setUpdatedAt(LocalDateTime.now());
         conversacion = conversacionRepository.save(conversacion);
         return new CrearConversacionResponse(conversacion.getId(), conversacion.getEstado());
+    }
+
+    @Transactional
+    public ConversacionDto obtenerOCrearPorProducto(Integer productoId, String email) {
+        UsuarioAuth duenio = getUsuarioByEmail(email);
+        ensureTieneRol(duenio, "DUENIO");
+
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        VerificacionChatConversacion conversacion = conversacionRepository.findByProductoId(productoId)
+                .orElseGet(() -> {
+                    VerificacionChatConversacion nueva = new VerificacionChatConversacion();
+                    nueva.setDuenioUsuario(duenio);
+                    nueva.setProducto(producto);
+                    nueva.setEstado("ABIERTA");
+                    nueva.setCreatedAt(LocalDateTime.now());
+                    nueva.setUpdatedAt(LocalDateTime.now());
+                    return conversacionRepository.save(nueva);
+                });
+
+        return toConversacionDto(conversacion);
+    }
+
+    @Transactional(readOnly = true)
+    public ConversacionDto obtenerConversacionAdminPorProducto(Integer productoId) {
+        return conversacionRepository.findByProductoId(productoId)
+                .map(this::toConversacionDto)
+                .orElseThrow(() -> new IllegalArgumentException("No existe conversacion para este producto"));
     }
 
     @Transactional
@@ -146,12 +195,25 @@ public class VerificacionChatService {
     }
 
     private ConversacionDto toConversacionDto(VerificacionChatConversacion c) {
+        Producto p = c.getProducto();
+        String fotoBase64 = null;
+        if (p != null) {
+            fotoBase64 = fotoRepository.findFirstByProductoIdOrderByIdAsc(p.getId())
+                    .map(Foto::getFoto)
+                    .map(bytes -> "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(bytes))
+                    .orElse(null);
+        }
         return new ConversacionDto(
                 c.getId(),
                 c.getDuenioUsuario().getId(),
                 c.getEmpleadoUsuario() != null ? c.getEmpleadoUsuario().getId() : null,
                 c.getEstado(),
-                c.getUpdatedAt()
+                c.getUpdatedAt(),
+                p != null ? p.getId() : null,
+                p != null ? p.getTitulo() : null,
+                p != null ? p.getEstadoInspeccion() : null,
+                p != null ? p.getMotivoRechazo() : null,
+                fotoBase64
         );
     }
 
