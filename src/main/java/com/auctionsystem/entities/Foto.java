@@ -34,7 +34,7 @@ public class Foto {
     @JoinColumn(name = "producto", nullable = false)
     private Producto producto;
 
-    @JdbcTypeCode(SqlTypes.LONGVARBINARY)
+    @JdbcTypeCode(SqlTypes.BLOB)
     @Column(name = "foto", nullable = false)
     private byte[] foto;
 }
