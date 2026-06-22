@@ -5,6 +5,7 @@ import com.auctionsystem.auction.SubastaConfigExtRepository;
 import com.auctionsystem.entities.Catalogo;
 import com.auctionsystem.entities.Cliente;
 import com.auctionsystem.entities.Duenio;
+import com.auctionsystem.repositories.DuenioRepository;
 import com.auctionsystem.entities.Empleado;
 import com.auctionsystem.entities.ItemCatalogo;
 import com.auctionsystem.entities.Persona;
@@ -42,9 +43,10 @@ public class DevSantiagoSeeder {
     private static final String PASSWORD = "Test1234!";
     private static final String SANTIAGO_EMAIL = "santiago1gallero@gmail.com";
 
+    // email | documento | nombre | categoriaCliente | esDuenio
     private static final List<String[]> DEV_USERS = List.of(
-            new String[]{SANTIAGO_EMAIL,             "30999888", "Santiago Gallero", "PLATINO"},
-            new String[]{"jiloji8868@dyleris.com",   "30999777", "Jiloji Dev",       "COMUN"}
+            new String[]{SANTIAGO_EMAIL,             "30999888", "Santiago Gallero", "PLATINO", "true"},
+            new String[]{"jiloji8868@dyleris.com",   "30999777", "Jiloji Dev",       "COMUN",   "false"}
     );
 
     private final UsuarioAuthRepository usuarioAuthRepository;
@@ -52,13 +54,13 @@ public class DevSantiagoSeeder {
     private final PersonaRepository personaRepository;
     private final ClienteRepository clienteRepository;
     private final MedioPagoRepository medioPagoRepository;
+    private final DuenioRepository duenioRepository;
     private final SubastaRepository subastaRepository;
     private final SubastaConfigExtRepository subastaConfigExtRepository;
     private final CatalogoRepository catalogoRepository;
     private final ItemCatalogoRepository itemCatalogoRepository;
     private final ProductoRepository productoRepository;
     private final EmpleadoRepository empleadoRepository;
-    private final DuenioRepository duenioRepository;
     private final PasswordEncoder passwordEncoder;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -67,15 +69,18 @@ public class DevSantiagoSeeder {
     public void run() {
         Rol rolPostor = rolRepository.findByNombre("POSTOR")
                 .orElseThrow(() -> new IllegalStateException("Rol POSTOR no encontrado"));
+        Rol rolDuenio = rolRepository.findByNombre("DUENIO")
+                .orElseThrow(() -> new IllegalStateException("Rol DUENIO no encontrado"));
 
         for (String[] u : DEV_USERS) {
-            seedUsuario(u[0], u[1], u[2], u[3], rolPostor);
+            boolean esDuenio = Boolean.parseBoolean(u[4]);
+            seedUsuario(u[0], u[1], u[2], u[3], rolPostor, esDuenio ? rolDuenio : null);
         }
 
         seedSubastasExtra();
     }
 
-    private void seedUsuario(String email, String documento, String nombre, String categoria, Rol rolPostor) {
+    private void seedUsuario(String email, String documento, String nombre, String categoria, Rol rolPostor, Rol rolDuenio) {
         UsuarioAuth usuario = usuarioAuthRepository.findByEmail(email).orElseGet(() -> {
             Persona persona = personaRepository.save(Persona.builder()
                     .documento(documento)
@@ -104,6 +109,33 @@ public class DevSantiagoSeeder {
             log.info("[DEV] Usuario creado: {} / {} (categoria: {})", email, PASSWORD, categoria);
             return nuevo;
         });
+
+        // Agregar rol DUENIO si corresponde y no lo tiene
+        if (rolDuenio != null) {
+            boolean yaTieneDuenio = usuario.getRoles().stream()
+                    .anyMatch(r -> "DUENIO".equalsIgnoreCase(r.getNombre()));
+            if (!yaTieneDuenio) {
+                usuario.getRoles().add(rolDuenio);
+                usuarioAuthRepository.save(usuario);
+                log.info("[DEV] Rol DUENIO agregado a {}", email);
+            }
+
+            // Crear entidad Duenio si no existe (Duenio.id == Persona.id)
+            if (usuario.getPersonaId() != null) {
+                duenioRepository.findById(usuario.getPersonaId()).orElseGet(() -> {
+                    Persona persona = personaRepository.findById(usuario.getPersonaId())
+                            .orElseThrow();
+                    Duenio duenio = duenioRepository.save(Duenio.builder()
+                            .persona(persona)
+                            .verificacionFinanciera("si")
+                            .verificacionJudicial("si")
+                            .calificacionRiesgo(80)
+                            .build());
+                    log.info("[DEV] Entidad Duenio creada para {}", email);
+                    return duenio;
+                });
+            }
+        }
 
         // Actualizar categoría si cambió
         if (usuario.getPersonaId() != null) {

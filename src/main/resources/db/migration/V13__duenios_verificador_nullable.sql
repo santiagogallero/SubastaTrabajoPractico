@@ -1,0 +1,1 @@
+ALTER TABLE duenios MODIFY COLUMN verificador INT NULL;
