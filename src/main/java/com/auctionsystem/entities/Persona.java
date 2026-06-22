@@ -5,7 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -39,7 +40,7 @@ public class Persona {
     @Column(name = "estado", length = 15)
     private String estado;
 
-    @Lob
-    @Column(name = "foto")
+    @JdbcTypeCode(SqlTypes.BLOB)
+    @Column(name = "foto", columnDefinition = "longblob")
     private byte[] foto;
 }
