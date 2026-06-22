@@ -2,8 +2,6 @@ package com.auctionsystem.product;
 
 import com.auctionsystem.auth.UsuarioAuth;
 import com.auctionsystem.auth.UsuarioAuthRepository;
-import com.auctionsystem.chat.VerificacionChatConversacion;
-import com.auctionsystem.chat.VerificacionChatConversacionRepository;
 import com.auctionsystem.entities.Duenio;
 import com.auctionsystem.entities.Empleado;
 import com.auctionsystem.entities.Foto;
@@ -51,7 +49,6 @@ public class ArticuloService {
     private final ProductoRepository productoRepository;
     private final FotoRepository fotoRepository;
     private final EmpleadoRepository empleadoRepository;
-    private final VerificacionChatConversacionRepository chatConversacionRepository;
 
     @Transactional
     public ArticuloResponse publicar(String email, PublicarArticuloRequest request) {
@@ -94,8 +91,6 @@ public class ArticuloService {
         producto = productoRepository.save(producto);
 
         guardarFotos(producto, request.fotos());
-
-        crearConversacionChat(usuarioDe(email), producto);
 
         log.info("[ARTICULO] Publicado articulo {} por {} ({} fotos)", producto.getId(), email, fotosValidas);
         return ArticuloResponse.de(producto, fotosValidas);
@@ -222,23 +217,6 @@ public class ArticuloService {
             throw new IllegalArgumentException("El usuario no tiene una persona asociada");
         }
         return usuario.getPersonaId();
-    }
-
-    private void crearConversacionChat(UsuarioAuth duenioUsuario, Producto producto) {
-        chatConversacionRepository.findByProductoId(producto.getId()).orElseGet(() -> {
-            VerificacionChatConversacion conv = new VerificacionChatConversacion();
-            conv.setDuenioUsuario(duenioUsuario);
-            conv.setProducto(producto);
-            conv.setEstado("ABIERTA");
-            conv.setCreatedAt(java.time.LocalDateTime.now());
-            conv.setUpdatedAt(java.time.LocalDateTime.now());
-            return chatConversacionRepository.save(conv);
-        });
-    }
-
-    private UsuarioAuth usuarioDe(String email) {
-        return usuarioAuthRepository.findByEmail(email.toLowerCase(java.util.Locale.ROOT))
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
     }
 
     private boolean isBlank(String value) {
