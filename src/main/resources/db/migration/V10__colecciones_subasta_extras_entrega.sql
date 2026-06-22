@@ -20,11 +20,11 @@ CREATE TABLE IF NOT EXISTS coleccion_productos (
 );
 
 ALTER TABLE subastas
-    ADD COLUMN IF NOT EXISTS streamingUrl VARCHAR(500) NULL,
-    ADD COLUMN IF NOT EXISTS depositoNombre VARCHAR(200) NULL,
-    ADD COLUMN IF NOT EXISTS depositoDireccion VARCHAR(350) NULL;
+    ADD COLUMN streamingUrl VARCHAR(500) NULL,
+    ADD COLUMN depositoNombre VARCHAR(200) NULL,
+    ADD COLUMN depositoDireccion VARCHAR(350) NULL;
 
 ALTER TABLE registroDeSubasta
-    ADD COLUMN IF NOT EXISTS modalidadEntrega VARCHAR(20) NULL,
-    ADD COLUMN IF NOT EXISTS direccionEnvio VARCHAR(500) NULL,
-    ADD COLUMN IF NOT EXISTS seguroVigenteTrasEntrega TINYINT(1) NULL DEFAULT 1;
+    ADD COLUMN modalidadEntrega VARCHAR(20) NULL,
+    ADD COLUMN direccionEnvio VARCHAR(500) NULL,
+    ADD COLUMN seguroVigenteTrasEntrega TINYINT(1) NULL DEFAULT 1;
