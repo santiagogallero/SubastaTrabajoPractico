@@ -44,6 +44,9 @@ public class UsuarioAuth {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "must_change_password", nullable = false)
+    private Boolean mustChangePassword = false;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_rol",

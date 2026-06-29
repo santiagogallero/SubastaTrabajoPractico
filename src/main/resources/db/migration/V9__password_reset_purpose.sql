@@ -1,0 +1,2 @@
+ALTER TABLE email_verification_code
+    ADD COLUMN purpose VARCHAR(30) NOT NULL DEFAULT 'EMAIL_VERIFY';

@@ -8,6 +8,8 @@ public record CurrentUserResponse(
         String estado,
         Integer personaId,
         Set<String> roles,
-        String categoria
+        String categoria,
+        boolean tieneMetodoPagoVerificado,
+        boolean mustChangePassword
 ) {
 }

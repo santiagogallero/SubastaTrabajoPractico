@@ -82,7 +82,7 @@ public class AuthService {
 
         UsuarioAuth usuario = new UsuarioAuth();
         usuario.setEmail(request.email().toLowerCase(Locale.ROOT));
-        usuario.setPasswordHash(passwordEncoder.encode(request.password()));
+        usuario.setPasswordHash(passwordEncoder.encode(generateTempPassword()));
         usuario.setEstado("PENDIENTE_VERIFICACION_EMAIL");
         usuario.setPersonaId(persona.getId());
         usuario.setCreatedAt(LocalDateTime.now());
@@ -340,6 +340,26 @@ public class AuthService {
                 );
         }
 
+        private static final String TEMP_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+
+        private String generateTempPassword() {
+                StringBuilder sb = new StringBuilder(10);
+                for (int i = 0; i < 10; i++) {
+                        sb.append(TEMP_CHARS.charAt(SECURE_RANDOM.nextInt(TEMP_CHARS.length())));
+                }
+                return sb.toString();
+        }
+
+        @Transactional
+        public void changePassword(String email, String newPassword) {
+                UsuarioAuth usuario = usuarioAuthRepository.findByEmail(email.toLowerCase(Locale.ROOT))
+                                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+                usuario.setPasswordHash(passwordEncoder.encode(newPassword));
+                usuario.setMustChangePassword(false);
+                usuario.setUpdatedAt(LocalDateTime.now());
+                usuarioAuthRepository.save(usuario);
+        }
+
         @Transactional
         public void aprobarUsuario(String email, String categoria) {
                 UsuarioAuth usuario = usuarioAuthRepository.findByEmail(email.toLowerCase(Locale.ROOT))
@@ -354,7 +374,10 @@ public class AuthService {
                 registro.setVerificadoAt(LocalDateTime.now());
                 registroPostorRepository.save(registro);
 
+                String tempPassword = generateTempPassword();
+                usuario.setPasswordHash(passwordEncoder.encode(tempPassword));
                 usuario.setEstado("ACTIVO");
+                usuario.setMustChangePassword(true);
                 usuario.setUpdatedAt(LocalDateTime.now());
                 usuarioAuthRepository.save(usuario);
 
@@ -364,8 +387,10 @@ public class AuthService {
 
                 mailService.sendPlainText(
                                 usuario.getEmail(),
-                                "Cuenta aprobada",
-                                "Tu cuenta fue verificada y aprobada. Ya podes participar segun tu categoria."
+                                "Cuenta aprobada — Acceso al sistema",
+                                "Tu cuenta fue verificada y aprobada con categoria " + categoria.toUpperCase(Locale.ROOT) + ".\n\n"
+                                + "Tu contrasena temporal es: " + tempPassword + "\n\n"
+                                + "Al ingresar por primera vez, el sistema te pedira que establezcas tu propia contrasena."
                 );
         }
 
@@ -447,13 +472,18 @@ public class AuthService {
                                         .orElse(null);
                 }
 
+                boolean tieneMetodoPagoVerificado = medioPagoRepository
+                                .existsByUsuarioIdAndVerificadoTrueAndActivoTrue(usuario.getId());
+
                 return new CurrentUserResponse(
                                 usuario.getId(),
                                 usuario.getEmail(),
                                 usuario.getEstado(),
                                 usuario.getPersonaId(),
                                 roles,
-                                categoria
+                                categoria,
+                                tieneMetodoPagoVerificado,
+                                Boolean.TRUE.equals(usuario.getMustChangePassword())
                 );
         }
 }

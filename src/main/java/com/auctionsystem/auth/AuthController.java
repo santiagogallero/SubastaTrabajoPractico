@@ -111,6 +111,18 @@ public class AuthController {
         return ResponseEntity.ok(authService.currentUser(principal.getName()));
     }
 
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> changePassword(
+            @RequestBody @Valid ChangePasswordRequest request,
+            Principal principal
+    ) {
+        authService.changePassword(principal.getName(), request.newPassword());
+        return ResponseEntity.ok("Contrasena actualizada");
+    }
+
+    public record ChangePasswordRequest(@NotBlank @jakarta.validation.constraints.Size(min = 8) String newPassword) {}
+
     @PostMapping("/admin/aprobar")
     @PreAuthorize("hasAnyRole('ADMIN','EMPLEADO')")
     public ResponseEntity<String> aprobarUsuario(@Valid @RequestBody AdminApprovalRequest request) {

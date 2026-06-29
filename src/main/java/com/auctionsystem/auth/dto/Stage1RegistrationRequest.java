@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 
 public record Stage1RegistrationRequest(
         @NotBlank @Email String email,
-        @NotBlank String password,
         @NotBlank String documento,
         @NotBlank String nombre,
         @NotBlank String domicilioLegal,

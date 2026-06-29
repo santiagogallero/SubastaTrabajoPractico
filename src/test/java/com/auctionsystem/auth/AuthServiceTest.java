@@ -53,7 +53,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         requestValido = new Stage1RegistrationRequest(
-                "juan@test.com", "Password123!", "12345678",
+                "juan@test.com", "12345678",
                 "Juan Perez", "Av. Siempre Viva 123", "ARGENTINA"
         );
     }
@@ -71,7 +71,7 @@ class AuthServiceTest {
         when(personaRepository.existsByDocumento("12345678")).thenReturn(false);
         when(personaRepository.save(any())).thenReturn(personaGuardada);
         when(rolRepository.findByNombre("POSTOR")).thenReturn(Optional.of(rolPostor));
-        when(passwordEncoder.encode("Password123!")).thenReturn("hashed");
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(usuarioAuthRepository.save(any())).thenAnswer(inv -> {
             UsuarioAuth u = inv.getArgument(0);
             u.setId(1L);

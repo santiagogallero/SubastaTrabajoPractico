@@ -38,6 +38,9 @@ public class EmailVerificationCode {
     @Column(name = "attempts", nullable = false)
     private int attempts;
 
+    @Column(name = "purpose", nullable = false, length = 30)
+    private String purpose;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }
