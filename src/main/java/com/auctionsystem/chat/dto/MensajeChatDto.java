@@ -7,6 +7,7 @@ public record MensajeChatDto(
         Long conversacionId,
         Long remitenteUsuarioId,
         String remitenteEmail,
+        String remitenteNombre,
         String texto,
         LocalDateTime enviadoAt
 ) {

@@ -7,4 +7,5 @@ public interface VerificacionChatConversacionRepository extends JpaRepository<Ve
     List<VerificacionChatConversacion> findByDuenioUsuarioIdOrderByUpdatedAtDesc(Long duenioUsuarioId);
     List<VerificacionChatConversacion> findByEstadoOrderByUpdatedAtDesc(String estado);
     java.util.Optional<VerificacionChatConversacion> findByProductoId(Integer productoId);
+    List<VerificacionChatConversacion> findByEmpleadoUsuarioIdOrderByUpdatedAtDesc(Long empleadoUsuarioId);
 }

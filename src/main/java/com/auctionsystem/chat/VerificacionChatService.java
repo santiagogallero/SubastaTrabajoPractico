@@ -6,10 +6,13 @@ import com.auctionsystem.chat.dto.ConversacionDto;
 import com.auctionsystem.chat.dto.CrearConversacionResponse;
 import com.auctionsystem.chat.dto.MensajeChatDto;
 import com.auctionsystem.entities.Foto;
+import com.auctionsystem.entities.Persona;
 import com.auctionsystem.entities.Producto;
 import com.auctionsystem.repositories.FotoRepository;
+import com.auctionsystem.repositories.PersonaRepository;
 import com.auctionsystem.repositories.ProductoRepository;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class VerificacionChatService {
 
     private final UsuarioAuthRepository usuarioAuthRepository;
+    private final PersonaRepository personaRepository;
     private final VerificacionChatConversacionRepository conversacionRepository;
     private final VerificacionChatMensajeRepository mensajeRepository;
     private final ProductoRepository productoRepository;
@@ -91,9 +95,15 @@ public class VerificacionChatService {
         ensureTieneAlgunRol(empleado, Set.of("ADMIN", "EMPLEADO"));
 
         VerificacionChatConversacion conversacion = getConversacion(conversacionId);
+
+        if (!"ABIERTA".equals(conversacion.getEstado())) {
+            throw new IllegalArgumentException("Solo se pueden tomar conversaciones con estado ABIERTA");
+        }
+
         if (conversacion.getEmpleadoUsuario() == null) {
             conversacion.setEmpleadoUsuario(empleado);
         }
+        conversacion.setEstado("EN_ATENCION");
         conversacion.setUpdatedAt(LocalDateTime.now());
         conversacion = conversacionRepository.save(conversacion);
         return toConversacionDto(conversacion);
@@ -103,6 +113,10 @@ public class VerificacionChatService {
     public MensajeChatDto enviarMensaje(Long conversacionId, String email, String texto, Authentication auth) {
         UsuarioAuth remitente = getUsuarioByEmail(email);
         VerificacionChatConversacion conversacion = getConversacion(conversacionId);
+
+        if ("CERRADA".equals(conversacion.getEstado())) {
+            throw new IllegalArgumentException("No se puede escribir en una conversacion cerrada");
+        }
 
         if (!puedeAcceder(conversacion, remitente, auth)) {
             throw new IllegalArgumentException("No tenes permisos para escribir en esta conversacion");
@@ -148,10 +162,21 @@ public class VerificacionChatService {
         }
 
         if (hasRole(auth, "ROLE_ADMIN") || hasRole(auth, "ROLE_EMPLEADO")) {
-            return conversacionRepository.findByEstadoOrderByUpdatedAtDesc("ABIERTA")
-                    .stream()
+            // ABIERTA: esperando que alguien las tome
+            // EN_ATENCION: las que ya tomó este empleado/admin
+            List<VerificacionChatConversacion> abiertas =
+                    conversacionRepository.findByEstadoOrderByUpdatedAtDesc("ABIERTA");
+            List<VerificacionChatConversacion> propias =
+                    conversacionRepository.findByEmpleadoUsuarioIdOrderByUpdatedAtDesc(usuario.getId());
+
+            List<ConversacionDto> resultado = new ArrayList<>();
+            resultado.addAll(abiertas.stream().map(this::toConversacionDto).toList());
+            // Agregar las propias que no son ABIERTA (EN_ATENCION, etc.) sin duplicar
+            propias.stream()
+                    .filter(c -> !"ABIERTA".equals(c.getEstado()))
                     .map(this::toConversacionDto)
-                    .toList();
+                    .forEach(resultado::add);
+            return resultado;
         }
 
         throw new IllegalArgumentException("Rol no habilitado para listar conversaciones");
@@ -194,7 +219,16 @@ public class VerificacionChatService {
         }
     }
 
+    private String resolverNombre(UsuarioAuth usuario) {
+        if (usuario.getPersonaId() == null) return usuario.getEmail();
+        return personaRepository.findById(usuario.getPersonaId())
+                .map(Persona::getNombre)
+                .orElse(usuario.getEmail());
+    }
+
     private ConversacionDto toConversacionDto(VerificacionChatConversacion c) {
+        String duenioNombre = resolverNombre(c.getDuenioUsuario());
+        String empleadoEmail = c.getEmpleadoUsuario() != null ? c.getEmpleadoUsuario().getEmail() : null;
         Producto p = c.getProducto();
         String fotoBase64 = null;
         if (p != null) {
@@ -206,8 +240,12 @@ public class VerificacionChatService {
         return new ConversacionDto(
                 c.getId(),
                 c.getDuenioUsuario().getId(),
+                c.getDuenioUsuario().getEmail(),
+                duenioNombre,
                 c.getEmpleadoUsuario() != null ? c.getEmpleadoUsuario().getId() : null,
+                empleadoEmail,
                 c.getEstado(),
+                c.getCreatedAt(),
                 c.getUpdatedAt(),
                 p != null ? p.getId() : null,
                 p != null ? p.getTitulo() : null,
@@ -218,11 +256,13 @@ public class VerificacionChatService {
     }
 
     private MensajeChatDto toMensajeDto(VerificacionChatMensaje m) {
+        String nombreRemitente = resolverNombre(m.getRemitente());
         return new MensajeChatDto(
                 m.getId(),
                 m.getConversacion().getId(),
                 m.getRemitente().getId(),
                 m.getRemitente().getEmail(),
+                nombreRemitente,
                 m.getTexto(),
                 m.getEnviadoAt()
         );
