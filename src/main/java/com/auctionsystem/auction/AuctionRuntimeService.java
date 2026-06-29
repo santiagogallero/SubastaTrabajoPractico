@@ -508,7 +508,7 @@ public class AuctionRuntimeService {
 
         int duracion = obtenerDuracionSubasta(subasta.getId());
         if (subasta.getFecha() == null || subasta.getHora() == null) {
-            return new SubastaTimingResponse(subasta.getId(), duracion, null, null, "SIN_FECHA", null);
+            return new SubastaTimingResponse(subasta.getId(), duracion, null, null, "SIN_FECHA", null, null, null, null);
         }
 
         LocalDateTime inicio = LocalDateTime.of(subasta.getFecha(), subasta.getHora());
