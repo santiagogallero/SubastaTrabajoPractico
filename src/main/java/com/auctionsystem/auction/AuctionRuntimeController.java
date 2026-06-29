@@ -85,6 +85,18 @@ public class AuctionRuntimeController {
         return ResponseEntity.ok(auctionRuntimeService.historial(itemId));
     }
 
+    @PostMapping("/subasta/{subastaId}/iniciar")
+    @PreAuthorize("hasAnyRole('ADMIN','EMPLEADO')")
+    public ResponseEntity<String> iniciarSubasta(
+            @PathVariable Integer subastaId,
+            @RequestBody(required = false) IniciarSubastaRequest request) {
+        Integer duracion = request != null ? request.duracionItemMinutos() : null;
+        auctionRuntimeService.iniciarSubastaRuntime(subastaId, duracion);
+        return ResponseEntity.ok("Subasta iniciada");
+    }
+
+    public record IniciarSubastaRequest(Integer duracionItemMinutos) {}
+
     @PostMapping("/subasta/{subastaId}/cerrar")
     @PreAuthorize("hasAnyRole('ADMIN','EMPLEADO')")
     public ResponseEntity<CierreSubastaResponse> cerrarSubasta(@PathVariable Integer subastaId) {

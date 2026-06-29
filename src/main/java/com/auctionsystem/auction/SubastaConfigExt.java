@@ -32,4 +32,14 @@ public class SubastaConfigExt {
 
     @Column(name = "duracion_minutos")
     private Integer duracionMinutos;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_actual_id")
+    private com.auctionsystem.entities.ItemCatalogo itemActual;
+
+    @Column(name = "item_iniciado_at")
+    private java.time.LocalDateTime itemIniciadoAt;
+
+    @Column(name = "duracion_item_minutos", nullable = false)
+    private Integer duracionItemMinutos = 5;
 }

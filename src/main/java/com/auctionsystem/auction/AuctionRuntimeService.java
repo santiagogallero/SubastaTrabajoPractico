@@ -254,6 +254,126 @@ public class AuctionRuntimeService {
         }
     }
 
+    // ── Iniciar subasta: pone el primer item en juego y cambia estado a ABIERTA ──
+    @Transactional
+    public void iniciarSubastaRuntime(Integer subastaId, Integer duracionItemMinutos) {
+        Subasta subasta = subastaRepository.findById(subastaId)
+                .orElseThrow(() -> new IllegalArgumentException("Subasta no encontrada"));
+
+        if ("ABIERTA".equalsIgnoreCase(subasta.getEstado()) || "CERRADA".equalsIgnoreCase(subasta.getEstado())) {
+            throw new IllegalArgumentException("La subasta ya fue iniciada o cerrada");
+        }
+
+        List<ItemCatalogo> items = itemCatalogoRepository.findBySubastaId(subastaId);
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("La subasta no tiene items para subastar");
+        }
+
+        // Filtrar solo los no subastados aún
+        List<ItemCatalogo> pendientes = items.stream()
+                .filter(i -> !"si".equalsIgnoreCase(i.getSubastado()))
+                .toList();
+        if (pendientes.isEmpty()) {
+            throw new IllegalArgumentException("Todos los items ya fueron subastados");
+        }
+
+        SubastaConfigExt config = subastaConfigExtRepository.findBySubastaId(subastaId)
+                .orElseGet(SubastaConfigExt::new);
+        config.setSubasta(subasta);
+        if (config.getMoneda() == null) config.setMoneda("ARS");
+        if (duracionItemMinutos != null && duracionItemMinutos > 0) {
+            config.setDuracionItemMinutos(duracionItemMinutos);
+        }
+        config.setItemActual(pendientes.get(0));
+        config.setItemIniciadoAt(LocalDateTime.now());
+        subastaConfigExtRepository.save(config);
+
+        subasta.setEstado("ABIERTA");
+        subastaRepository.save(subasta);
+    }
+
+    // ── Scheduler: cada 30 segundos revisa si el item activo venció ──
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 30_000)
+    @Transactional
+    public void tickSubastasActivas() {
+        List<SubastaConfigExt> activas = subastaConfigExtRepository.findSubastasActivasConItem();
+        for (SubastaConfigExt config : activas) {
+            LocalDateTime vencimiento = config.getItemIniciadoAt()
+                    .plusMinutes(config.getDuracionItemMinutos());
+            if (LocalDateTime.now().isAfter(vencimiento)) {
+                try {
+                    cerrarItemActualYAvanzar(config);
+                } catch (Exception e) {
+                    // Log error pero continuar con las otras subastas
+                }
+            }
+        }
+    }
+
+    // ── Lógica compartida: cierra el item activo y avanza al siguiente ──
+    private void cerrarItemActualYAvanzar(SubastaConfigExt config) {
+        ItemCatalogo item = config.getItemActual();
+        Subasta subasta = config.getSubasta();
+
+        // Determinar ganador de este item
+        Pujo pujoGanador = pujoRepository.findTopByItemIdOrderByImporteDesc(item.getId()).orElse(null);
+
+        if (pujoGanador != null) {
+            pujoGanador.setGanador("si");
+            pujoRepository.save(pujoGanador);
+
+            Cliente comprador = pujoGanador.getAsistente().getCliente();
+            Duenio duenio = item.getProducto().getDuenio();
+
+            RegistroDeSubasta registro = RegistroDeSubasta.builder()
+                    .subasta(subasta)
+                    .duenio(duenio)
+                    .producto(item.getProducto())
+                    .cliente(comprador)
+                    .importe(pujoGanador.getImporte())
+                    .comision(item.getComision())
+                    .build();
+            registro = registroRepository.save(registro);
+            complianceService.inicializarPago(registro.getId());
+
+            usuarioAuthRepository.findByPersonaId(comprador.getPersona().getId()).ifPresent(u -> {
+                BigDecimal total = pujoGanador.getImporte().add(item.getComision());
+                mailService.sendPlainText(u.getEmail(), "¡Ganaste el lote!",
+                        "Ganaste: " + item.getProducto().getDescripcionCompleta() + "\n"
+                        + "Importe: " + pujoGanador.getImporte() + "\n"
+                        + "Comision: " + item.getComision() + "\n"
+                        + "Total: " + total + "\n\n"
+                        + "Tenes 72 horas para presentar los fondos. "
+                        + "Sin pago se aplica multa del 10% y bloqueo.");
+            });
+        }
+
+        item.setSubastado("si");
+        itemCatalogoRepository.save(item);
+
+        // Buscar el siguiente item pendiente
+        List<ItemCatalogo> pendientes = itemCatalogoRepository.findBySubastaId(subasta.getId())
+                .stream()
+                .filter(i -> !"si".equalsIgnoreCase(i.getSubastado()))
+                .toList();
+
+        if (!pendientes.isEmpty()) {
+            // Avanzar al siguiente item
+            config.setItemActual(pendientes.get(0));
+            config.setItemIniciadoAt(LocalDateTime.now());
+            subastaConfigExtRepository.save(config);
+        } else {
+            // No hay más items: cerrar la subasta
+            config.setItemActual(null);
+            config.setItemIniciadoAt(null);
+            subastaConfigExtRepository.save(config);
+
+            subasta.setEstado("CERRADA");
+            subastaRepository.save(subasta);
+            conexionSubastaActivaRepository.deleteBySubastaId(subasta.getId());
+        }
+    }
+
     @Transactional
     public CierreSubastaResponse cerrarSubasta(Integer subastaId) {
         Subasta subasta = subastaRepository.findById(subastaId)
