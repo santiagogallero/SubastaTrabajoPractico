@@ -528,7 +528,18 @@ public class AuctionRuntimeService {
             minutosRestantes = Duration.between(ahora, fin).toMinutes();
         }
 
-        return new SubastaTimingResponse(subasta.getId(), duracion, inicio, fin, estado, minutosRestantes);
+        SubastaConfigExt config = subastaConfigExtRepository.findBySubastaId(subastaId).orElse(null);
+        Integer itemActualId = config != null && config.getItemActual() != null ? config.getItemActual().getId() : null;
+        LocalDateTime itemExpiraAt = null;
+        Long segundosRestantesItem = null;
+        if (config != null && config.getItemIniciadoAt() != null && config.getDuracionItemMinutos() != null) {
+            itemExpiraAt = config.getItemIniciadoAt().plusMinutes(config.getDuracionItemMinutos());
+            long segs = java.time.Duration.between(ahora, itemExpiraAt).getSeconds();
+            segundosRestantesItem = Math.max(0, segs);
+        }
+
+        return new SubastaTimingResponse(subasta.getId(), duracion, inicio, fin, estado, minutosRestantes,
+                itemActualId, itemExpiraAt, segundosRestantesItem);
     }
 
     @Transactional(readOnly = true)

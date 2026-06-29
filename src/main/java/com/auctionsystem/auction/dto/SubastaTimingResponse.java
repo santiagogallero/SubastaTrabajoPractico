@@ -5,9 +5,12 @@ import java.time.LocalDateTime;
 public record SubastaTimingResponse(
         Integer subastaId,
         Integer duracionMinutos,
-        LocalDateTime inicio,
-        LocalDateTime fin,
+        java.time.LocalDateTime inicio,
+        java.time.LocalDateTime fin,
         String estadoTemporal,
-        Long minutosRestantes
+        Long minutosRestantes,
+        Integer itemActualId,
+        java.time.LocalDateTime itemExpiraAt,
+        Long segundosRestantesItem
 ) {
 }
