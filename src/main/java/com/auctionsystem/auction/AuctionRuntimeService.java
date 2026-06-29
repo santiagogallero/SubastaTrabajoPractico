@@ -1,5 +1,6 @@
 package com.auctionsystem.auction;
 
+import com.auctionsystem.auction.dto.CierreSubastaResponse;
 import com.auctionsystem.auction.dto.PujaHistorialItem;
 import com.auctionsystem.auction.dto.PujaResponse;
 import com.auctionsystem.auction.dto.PujarRequest;
@@ -13,18 +14,24 @@ import com.auctionsystem.auth.UsuarioAuthRepository;
 import com.auctionsystem.compliance.ComplianceService;
 import com.auctionsystem.entities.Asistente;
 import com.auctionsystem.entities.Cliente;
+import com.auctionsystem.entities.Duenio;
 import com.auctionsystem.entities.ItemCatalogo;
 import com.auctionsystem.entities.Pujo;
+import com.auctionsystem.entities.RegistroDeSubasta;
 import com.auctionsystem.entities.Subasta;
 import com.auctionsystem.repositories.AsistenteRepository;
 import com.auctionsystem.repositories.ClienteRepository;
+import com.auctionsystem.repositories.DuenioRepository;
 import com.auctionsystem.repositories.ItemCatalogoRepository;
 import com.auctionsystem.repositories.PujoRepository;
+import com.auctionsystem.repositories.RegistroDeSubastaRepository;
 import com.auctionsystem.repositories.SubastaRepository;
+import com.auctionsystem.services.MailService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -43,15 +50,18 @@ public class AuctionRuntimeService {
 
     private final UsuarioAuthRepository usuarioAuthRepository;
     private final ClienteRepository clienteRepository;
+    private final DuenioRepository duenioRepository;
     private final SubastaRepository subastaRepository;
     private final AsistenteRepository asistenteRepository;
     private final ItemCatalogoRepository itemCatalogoRepository;
     private final PujoRepository pujoRepository;
+    private final RegistroDeSubastaRepository registroRepository;
     private final MedioPagoRepository medioPagoRepository;
     private final ConexionSubastaActivaRepository conexionSubastaActivaRepository;
     private final SubastaConfigExtRepository subastaConfigExtRepository;
     private final ComplianceService complianceService;
     private final BidWebSocketHandler bidWebSocketHandler;
+    private final MailService mailService;
 
     @Transactional
     public void configurarMoneda(Integer subastaId, String moneda) {
@@ -229,8 +239,7 @@ public class AuctionRuntimeService {
 
     /**
      * Difunde el evento solo si la transaccion confirma, para no notificar
-     * pujas que terminen revirtiendose. Si no hay transaccion activa (p. ej.
-     * en tests unitarios) difunde de inmediato.
+     * pujas que terminen revirtiendose.
      */
     private void difundirPujaTrasCommit(Integer subastaId, BidEvent evento) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -243,6 +252,115 @@ public class AuctionRuntimeService {
         } else {
             bidWebSocketHandler.difundir(subastaId, evento);
         }
+    }
+
+    @Transactional
+    public CierreSubastaResponse cerrarSubasta(Integer subastaId) {
+        Subasta subasta = subastaRepository.findById(subastaId)
+                .orElseThrow(() -> new IllegalArgumentException("Subasta no encontrada"));
+
+        if ("CERRADA".equalsIgnoreCase(subasta.getEstado())) {
+            throw new IllegalArgumentException("La subasta ya fue cerrada");
+        }
+
+        List<ItemCatalogo> items = itemCatalogoRepository.findBySubastaId(subastaId);
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("La subasta no tiene items en catalogo");
+        }
+
+        List<CierreSubastaResponse.ItemCierreDto> detalle = new ArrayList<>();
+        int vendidos = 0;
+        int sinOfertas = 0;
+
+        for (ItemCatalogo item : items) {
+            Pujo pujoGanador = pujoRepository.findTopByItemIdOrderByImporteDesc(item.getId()).orElse(null);
+
+            if (pujoGanador != null) {
+                // Marcar puja ganadora
+                pujoGanador.setGanador("si");
+                pujoRepository.save(pujoGanador);
+
+                // Marcar item como subastado
+                item.setSubastado("si");
+                itemCatalogoRepository.save(item);
+
+                Cliente comprador = pujoGanador.getAsistente().getCliente();
+                Duenio duenio = item.getProducto().getDuenio();
+
+                // Crear registro de venta
+                RegistroDeSubasta registro = RegistroDeSubasta.builder()
+                        .subasta(subasta)
+                        .duenio(duenio)
+                        .producto(item.getProducto())
+                        .cliente(comprador)
+                        .importe(pujoGanador.getImporte())
+                        .comision(item.getComision())
+                        .build();
+                registro = registroRepository.save(registro);
+
+                // Disparar el reloj de pago (72 horas para presentar fondos)
+                complianceService.inicializarPago(registro.getId());
+
+                // Notificar al ganador
+                String emailGanador = usuarioAuthRepository.findByPersonaId(comprador.getPersona().getId())
+                        .map(u -> u.getEmail())
+                        .orElse(null);
+
+                String nombreGanador = comprador.getPersona() != null ? comprador.getPersona().getNombre() : "Comprador";
+
+                if (emailGanador != null) {
+                    BigDecimal total = pujoGanador.getImporte().add(item.getComision());
+                    mailService.sendPlainText(
+                            emailGanador,
+                            "¡Ganaste la subasta!",
+                            "Felicitaciones " + nombreGanador + "!\n\n"
+                            + "Ganaste el lote: " + item.getProducto().getDescripcionCompleta() + "\n"
+                            + "Importe ofertado: " + pujoGanador.getImporte() + "\n"
+                            + "Comision: " + item.getComision() + "\n"
+                            + "Total a pagar: " + total + "\n\n"
+                            + "Tenes 72 horas para presentar los fondos. "
+                            + "Si no pagas en ese plazo se aplicara una multa del 10% del importe ofertado "
+                            + "y quedaras bloqueado para participar en futuras subastas."
+                    );
+                }
+
+                detalle.add(new CierreSubastaResponse.ItemCierreDto(
+                        item.getId(),
+                        item.getProducto().getDescripcionCompleta(),
+                        item.getPrecioBase(),
+                        pujoGanador.getImporte(),
+                        emailGanador,
+                        nombreGanador,
+                        "VENDIDO"
+                ));
+                vendidos++;
+
+            } else {
+                // Sin ofertas: empresa compra al precio base
+                item.setSubastado("si");
+                itemCatalogoRepository.save(item);
+
+                detalle.add(new CierreSubastaResponse.ItemCierreDto(
+                        item.getId(),
+                        item.getProducto().getDescripcionCompleta(),
+                        item.getPrecioBase(),
+                        item.getPrecioBase(),
+                        null,
+                        "Empresa",
+                        "SIN_OFERTAS"
+                ));
+                sinOfertas++;
+            }
+        }
+
+        // Cerrar la subasta
+        subasta.setEstado("CERRADA");
+        subastaRepository.save(subasta);
+
+        // Desconectar a todos los asistentes
+        conexionSubastaActivaRepository.deleteBySubastaId(subastaId);
+
+        return new CierreSubastaResponse(subastaId, vendidos, sinOfertas, detalle);
     }
 
     @Transactional(readOnly = true)

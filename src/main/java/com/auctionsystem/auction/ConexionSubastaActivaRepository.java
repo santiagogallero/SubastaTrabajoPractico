@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ConexionSubastaActivaRepository extends JpaRepository<ConexionSubastaActiva, Long> {
     Optional<ConexionSubastaActiva> findByClienteId(Integer clienteId);
     void deleteByClienteId(Integer clienteId);
+    void deleteBySubastaId(Integer subastaId);
 }

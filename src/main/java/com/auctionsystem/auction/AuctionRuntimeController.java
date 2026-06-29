@@ -1,5 +1,6 @@
 package com.auctionsystem.auction;
 
+import com.auctionsystem.auction.dto.CierreSubastaResponse;
 import com.auctionsystem.auction.dto.ConfigurarMonedaSubastaRequest;
 import com.auctionsystem.auction.dto.ConfigurarDuracionSubastaRequest;
 import com.auctionsystem.auction.dto.CalcularComisionRequest;
@@ -82,6 +83,12 @@ public class AuctionRuntimeController {
     @PreAuthorize("hasAnyRole('POSTOR','ADMIN','EMPLEADO','SUBASTADOR')")
     public ResponseEntity<List<PujaHistorialItem>> historial(@PathVariable Integer itemId) {
         return ResponseEntity.ok(auctionRuntimeService.historial(itemId));
+    }
+
+    @PostMapping("/subasta/{subastaId}/cerrar")
+    @PreAuthorize("hasAnyRole('ADMIN','EMPLEADO')")
+    public ResponseEntity<CierreSubastaResponse> cerrarSubasta(@PathVariable Integer subastaId) {
+        return ResponseEntity.ok(auctionRuntimeService.cerrarSubasta(subastaId));
     }
 
     @PostMapping("/comisiones/calcular")
